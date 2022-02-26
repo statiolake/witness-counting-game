@@ -9,10 +9,10 @@ import (
 )
 
 func TestStateSetup(t *testing.T) {
-	state := dummyGameState()
+	g := dummyGameState()
 
 	t.Run("SquadsIndexIdAgreement", func(t *testing.T) {
-		for idx, squad := range state.squads {
+		for idx, squad := range g.squads {
 			if idx != squad.id {
 				t.Errorf(
 					"Squad id and index do not agree: %d and %d",
@@ -24,7 +24,7 @@ func TestStateSetup(t *testing.T) {
 	})
 
 	t.Run("AgentsIndexIdAgreement", func(t *testing.T) {
-		for idx, agent := range state.agents {
+		for idx, agent := range g.agents {
 			if idx != agent.id {
 				t.Errorf(
 					"Agent id and index do not agree: %d and %d",
@@ -37,16 +37,16 @@ func TestStateSetup(t *testing.T) {
 }
 
 func TestApplyActionFor(t *testing.T) {
-	state := dummyGameState()
+	g := dummyGameState()
 	t.Run("RightAbove45", func(t *testing.T) {
-		agent := state.agents[0]
+		agent := g.agents[0]
 
 		// 右上斜め 45 度にこのエージェントを動かしてみる
 		agent.SetNextAction(&ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
 		})
 
-		ok, err := state.ApplyActionFor(state.agents[0])
+		ok, err := agent.ApplyActionOn(&g)
 		if err != nil {
 			t.Fatalf("action didn't apply: %v", err)
 		}
@@ -63,14 +63,14 @@ func TestApplyActionFor(t *testing.T) {
 	})
 
 	t.Run("OutsideOfField", func(t *testing.T) {
-		agent := state.agents[0]
+		agent := g.agents[0]
 
 		// 遠くへ移動しようとしてみる
 		agent.SetNextAction(&ActionMove{
 			Dir: geom.NewPolarVector(1e5, 0),
 		})
 
-		ok, err := state.ApplyActionFor(state.agents[0])
+		ok, err := agent.ApplyActionOn(&g)
 
 		if err == nil {
 			t.Fatalf("too far moving accepted")
@@ -92,7 +92,7 @@ func TestApplyActionFor(t *testing.T) {
 			nextAction: &ActionMove{Dir: geom.NewPolarVector(1, 0)},
 		}
 
-		ok, err := state.ApplyActionFor(&agent)
+		ok, err := agent.ApplyActionOn(&g)
 
 		if err == nil {
 			t.Fatalf("invalid agent accepted")
@@ -106,15 +106,15 @@ func TestApplyActionFor(t *testing.T) {
 
 func TestStep(t *testing.T) {
 	t.Run("OneAgentHasAction", func(t *testing.T) {
-		state := dummyGameState()
-		agent := state.agents[0]
+		g := dummyGameState()
+		agent := g.agents[0]
 
 		// 右上斜め 45 度にこのエージェントを動かしてみる
 		agent.SetNextAction(&ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
 		})
 
-		if err := state.Step(); err != nil {
+		if err := g.Step(false); err != nil {
 			t.Fatalf("step failed: %v", err)
 		}
 
@@ -126,21 +126,22 @@ func TestStep(t *testing.T) {
 	})
 
 	t.Run("TwoAgentHaveAction", func(t *testing.T) {
-		state := dummyGameState()
+		cfg := dummyGameConfig()
+		g := NewGameState(&cfg)
 
 		// 右上斜め 45 度にこのエージェントを動かしてみる
-		ag0 := state.agents[0]
+		ag0 := g.agents[0]
 		ag0.nextAction = &ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
 		}
 
 		// 左上斜め 45 度にこのエージェントを動かしてみる
-		ag1 := state.agents[1]
+		ag1 := g.agents[1]
 		ag1.nextAction = &ActionMove{
 			Dir: geom.NewPolarVector(1, 3*math.Pi/4),
 		}
 
-		if err := state.Step(); err != nil {
+		if err := g.Step(false); err != nil {
 			t.Fatalf("step failed: %v", err)
 		}
 
@@ -157,6 +158,25 @@ func TestStep(t *testing.T) {
 		if !eq(actual.X, expected.X) || !eq(actual.Y, expected.Y) {
 			t.Fatalf("expected %v but actual %v", expected, actual)
 		}
+
+		// スコアを確認
+		// 現状は障害物がないのでそのまま人数が出てくるはず。
+		for _, a := range g.agents {
+			if a.kind == Hunter {
+				// Hunter の場合、 cfg.squads の数だけ Runner がいるから、そ
+				// れぞれから 1/cfg.squads だけもらっていて、結局 +1
+				if !eq(a.point, 1.0) {
+					t.Fatalf("expected %v but actual %v", 1.0, a.point)
+				}
+			}
+
+			if a.kind == Runner {
+				// Runner の場合、誰かには見られているので結局 -1
+				if !eq(a.point, -1.0) {
+					t.Fatalf("expected %v but actual %v", 1.0, a.point)
+				}
+			}
+		}
 	})
 }
 
@@ -164,7 +184,7 @@ func eq(a, b float64) bool {
 	return math.Abs(a-b) < 1e-8
 }
 
-func dummyConfig() GameConfig {
+func dummyGameConfig() GameConfig {
 	numSquads := 5
 
 	field := FieldConfig{
@@ -205,6 +225,6 @@ func dummyConfig() GameConfig {
 }
 
 func dummyGameState() GameState {
-	config := dummyConfig()
+	config := dummyGameConfig()
 	return NewGameState(&config)
 }

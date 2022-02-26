@@ -107,7 +107,17 @@ func NewGameState(config *GameConfig) GameState {
 	}
 }
 
-func (g *GameState) Step() error {
+func (g *GameState) Step(ignoreError bool) error {
+	if err := g.ProcessActions(true); err != nil {
+		return err
+	}
+
+	g.MoveScore()
+
+	return nil
+}
+
+func (g *GameState) ProcessActions(ignoreError bool) error {
 	for idx, agent := range g.agents {
 		if idx != agent.id {
 			panic(
@@ -120,7 +130,7 @@ func (g *GameState) Step() error {
 		}
 
 		// 次の行動が設定されているのであれば適用する
-		if _, err := g.ApplyActionFor(agent); err != nil {
+		if _, err := agent.ApplyActionOn(g); !ignoreError && err != nil {
 			return fmt.Errorf("failed to execute a step: %w", err)
 		}
 	}
@@ -128,16 +138,86 @@ func (g *GameState) Step() error {
 	return nil
 }
 
-func (g *GameState) ApplyActionFor(agent *AgentState) (bool, error) {
-	if !g.isRegisteredAgent(agent) {
+func (g *GameState) MoveScore() {
+	// まずは各 Runner が何人から見られているかを数える (それによって一人の
+	// Hunter がその Runner からもらえる得点がかわってくるので)
+	watchers := make([][]*AgentState, len(g.agents))
+	for _, a := range g.agents {
+		if a.kind == Hunter {
+			watchers[a.id] = g.GetCapturedRunners(a)
+		} else if a.kind == Runner {
+			watchers[a.id] = g.GetWatchingHunters(a)
+		}
+	}
+
+	for _, a := range g.agents {
+		var delta float64 = 0.0
+		if a.kind == Hunter {
+			// Hunter の報酬は各 Runner が提供してくれるスコアの和
+			// 各 Runner はスコア 1.0 を見られているハンターへ等分する
+			// TODO: 等分だと「わざと自分のハンターに見られることで相手に点数
+			// が流出する量を減らす、という裏技が生まれてしまうので、よりいい
+			// 感じのスコアを考えるべし
+			for _, r := range watchers[a.id] {
+				delta += 1.0 / float64(len(watchers[r.id]))
+			}
+		}
+		if a.kind == Runner {
+			// Runner は Hunter に対してスコアを提供する
+			// 一人からでも見られている限り 1.0 を供出することになる
+			if len(watchers[a.id]) > 0 {
+				delta = -1.0
+			}
+		}
+		a.point += delta
+	}
+}
+
+func (g *GameState) GetWatchingHunters(agent *AgentState) []*AgentState {
+	res := []*AgentState{}
+	for _, hunter := range g.agents {
+		if hunter.kind != Hunter {
+			continue
+		}
+
+		if hunter.IsWatching(agent, g) {
+			res = append(res, hunter)
+		}
+	}
+
+	return res
+}
+
+func (g *GameState) GetCapturedRunners(hunter *AgentState) []*AgentState {
+	res := []*AgentState{}
+	for _, agent := range g.agents {
+		if agent.kind != Runner {
+			continue
+		}
+
+		if hunter.IsWatching(agent, g) {
+			res = append(res, agent)
+		}
+	}
+
+	return res
+}
+
+func (from *AgentState) IsWatching(to *AgentState, g *GameState) bool {
+	// TODO: from と to の間に遮蔽物があるかどうかをチェックする
+	return true
+}
+
+func (a *AgentState) ApplyActionOn(g *GameState) (bool, error) {
+	if !a.isRegisteredAgentOn(g) {
 		return false, fmt.Errorf(
 			"agent %s/%s is not registered",
-			g.squads[agent.squad].name,
-			agent.name,
+			g.squads[a.squad].name,
+			a.name,
 		)
 	}
 
-	action := agent.nextAction
+	action := a.nextAction
 	if action == nil {
 		// 移動しないが別にエラーではない
 		return false, nil
@@ -145,22 +225,22 @@ func (g *GameState) ApplyActionFor(agent *AgentState) (bool, error) {
 
 	// 実際に位置を移動する
 	vec_dir := action.Dir.ToVector()
-	new_pos := agent.pos.Add(vec_dir).AsCoord()
+	new_pos := a.pos.Add(vec_dir).AsCoord()
 
-	if !g.field.MovableTo(agent, new_pos) {
+	if !g.field.MovableTo(a, new_pos) {
 		// 移動できないので何もしない
 		return false, fmt.Errorf("cannot move to %s", new_pos.ToString())
 	}
 
-	agent.pos = new_pos
+	a.pos = new_pos
 	return true, nil
 }
 
-func (g *GameState) isRegisteredAgent(agent *AgentState) bool {
-	if agent.id >= len(g.agents) {
+func (a *AgentState) isRegisteredAgentOn(g *GameState) bool {
+	if a.id >= len(g.agents) {
 		return false
 	}
-	return g.agents[agent.id] == agent
+	return g.agents[a.id] == a
 }
 
 func (f *FieldState) MovableTo(agent *AgentState, new_pos geom.Coord) bool {
