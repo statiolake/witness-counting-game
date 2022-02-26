@@ -8,16 +8,17 @@ const (
 )
 
 type Game struct {
-	config GameConfig
+	config *GameConfig
 	state  GameState
 }
 
 func NewGame(config *GameConfig) *Game {
 	return &Game{
-		state: NewGameState(config),
+		config: config,
+		state:  NewGameState(config),
 	}
 }
 
 func (g *Game) GetConfig() GameConfig {
-	return g.config
+	return *g.config
 }

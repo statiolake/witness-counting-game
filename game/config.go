@@ -26,4 +26,5 @@ type AgentConfig struct {
 	Name    string
 	Kind    Kind
 	InitPos geom.Coord
+	AI      AI
 }

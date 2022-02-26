@@ -42,9 +42,9 @@ func TestApplyActionFor(t *testing.T) {
 		agent := g.agents[0]
 
 		// 右上斜め 45 度にこのエージェントを動かしてみる
-		agent.SetNextAction(&ActionMove{
+		agent.nextAction = &ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
-		})
+		}
 
 		ok, err := agent.ApplyActionOn(&g)
 		if err != nil {
@@ -66,9 +66,9 @@ func TestApplyActionFor(t *testing.T) {
 		agent := g.agents[0]
 
 		// 遠くへ移動しようとしてみる
-		agent.SetNextAction(&ActionMove{
+		agent.nextAction = &ActionMove{
 			Dir: geom.NewPolarVector(1e5, 0),
-		})
+		}
 
 		ok, err := agent.ApplyActionOn(&g)
 
@@ -110,9 +110,9 @@ func TestStep(t *testing.T) {
 		agent := g.agents[0]
 
 		// 右上斜め 45 度にこのエージェントを動かしてみる
-		agent.SetNextAction(&ActionMove{
+		agent.nextAction = &ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
-		})
+		}
 
 		if err := g.Step(false); err != nil {
 			t.Fatalf("step failed: %v", err)

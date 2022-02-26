@@ -62,10 +62,6 @@ func NewAgentState(squadId int, id int, agent AgentConfig) *AgentState {
 	}
 }
 
-func (a *AgentState) SetNextAction(action *ActionMove) {
-	a.nextAction = action
-}
-
 func (a *AgentState) GetPos() geom.Coord {
 	return a.pos
 }
@@ -209,7 +205,7 @@ func (from *AgentState) IsWatching(to *AgentState, g *GameState) bool {
 }
 
 func (a *AgentState) ApplyActionOn(g *GameState) (bool, error) {
-	if !a.isRegisteredAgentOn(g) {
+	if !a.isRegisteredOn(g) {
 		return false, fmt.Errorf(
 			"agent %s/%s is not registered",
 			g.squads[a.squad].name,
@@ -236,16 +232,16 @@ func (a *AgentState) ApplyActionOn(g *GameState) (bool, error) {
 	return true, nil
 }
 
-func (a *AgentState) isRegisteredAgentOn(g *GameState) bool {
-	if a.id >= len(g.agents) {
-		return false
-	}
-	return g.agents[a.id] == a
-}
-
 func (f *FieldState) MovableTo(agent *AgentState, new_pos geom.Coord) bool {
 	return (f.minX <= new_pos.X &&
 		new_pos.X <= f.maxX &&
 		f.minY <= new_pos.Y &&
 		new_pos.Y <= f.maxY)
+}
+
+func (a *AgentState) isRegisteredOn(g *GameState) bool {
+	if a.id >= len(g.agents) {
+		return false
+	}
+	return g.agents[a.id] == a
 }
