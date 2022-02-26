@@ -21,6 +21,10 @@ type PolarCoord struct {
 	PolarVector
 }
 
+type Rect struct {
+	LT, RB Coord
+}
+
 type Direction struct {
 	t float64
 }
@@ -52,6 +56,20 @@ func (a Vector) Add(b Vector) Vector {
 func NewCoord(x, y float64) Coord {
 	return Coord{
 		Vector: NewVector(x, y),
+	}
+}
+
+func NewRect(lt, rb Coord) Rect {
+	return Rect{
+		LT: lt,
+		RB: rb,
+	}
+}
+
+func NewRectFromPoints(minX, minY, maxX, maxY float64) Rect {
+	return Rect{
+		LT: NewCoord(minX, minY),
+		RB: NewCoord(maxX, maxY),
 	}
 }
 
