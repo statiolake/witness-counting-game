@@ -13,9 +13,9 @@ type SquadConfig struct {
 	ais    []AI
 }
 
-func NewAIPlayConfig(field game.FieldConfig, speed float64) AIPlayConfig {
+func NewAIPlayConfig(field game.FieldConfig) AIPlayConfig {
 	return AIPlayConfig{
-		gameConfig: game.NewGameConfig(field, speed),
+		gameConfig: game.NewGameConfig(field),
 		ais:        []AI{},
 	}
 }
@@ -32,14 +32,14 @@ func (c *AIPlayConfig) AddSquad(squad SquadConfig) {
 	squadConfig := game.NewSquadConfig(squad.name)
 
 	for _, agent := range squad.agents {
-		squadConfig.AddAgent(agent)
+		squadConfig.WithAgent(agent)
 	}
 
 	for _, ai := range squad.ais {
 		c.ais = append(c.ais, ai)
 	}
 
-	c.gameConfig.AddSquad(squadConfig)
+	c.gameConfig.WithSquad(squadConfig)
 }
 
 func (c *SquadConfig) AddAgent(agent game.AgentConfig, ai AI) {

@@ -14,10 +14,11 @@ const (
 )
 
 type Game struct {
-	config *GameConfig
-	field  *Field
-	squads []*Squad
-	agents []*Agent
+	config        *GameConfig
+	field         *Field
+	squads        []*Squad
+	agents        []*Agent
+	timeRemaining int
 }
 
 type Field struct {
@@ -30,9 +31,8 @@ type Obstruction struct {
 }
 
 type Squad struct {
-	id    int
-	name  string
-	alive bool
+	id   int
+	name string
 }
 
 type Agent struct {
@@ -74,15 +74,28 @@ func NewGame(config *GameConfig) *Game {
 	}
 
 	return &Game{
-		config: config,
-		field:  field,
-		squads: squads,
-		agents: agents,
+		config:        config,
+		field:         field,
+		squads:        squads,
+		agents:        agents,
+		timeRemaining: config.time,
 	}
 }
 
-func (g *Game) GetConfig() GameConfig {
-	return *g.config
+func (g *Game) GetConfig() *GameConfig {
+	return g.config
+}
+
+func (g *Game) GetField() *Field {
+	return g.field
+}
+
+func (g *Game) GetAgents() []*Agent {
+	return g.agents
+}
+
+func (g *Game) GetSquads() []*Squad {
+	return g.squads
 }
 
 func NewSquad(id int, squad SquadConfig) *Squad {
@@ -109,14 +122,29 @@ func (a *Agent) GetPos() geom.Coord {
 	return a.pos
 }
 
-func (g *Game) Step(ignoreError bool) error {
-	if err := g.ProcessActions(true); err != nil {
-		return err
+func (g *Game) IsFinished() bool {
+	return g.timeRemaining <= 0
+}
+
+func (g *Game) Step() bool {
+	if g.IsFinished() {
+		// 時間が終了している
+		return false
 	}
 
+	if err := g.ProcessActions(true); err != nil {
+		// アクションの実行にエラーがあった場合
+		// 無視しているはずなのでバグ
+		panic("internal error: error not ignored")
+	}
+
+	// スコアの移動をする
 	g.MoveScore()
 
-	return nil
+	// 時間が経過する
+	g.timeRemaining--
+
+	return true
 }
 
 func (g *Game) ProcessActions(ignoreError bool) error {

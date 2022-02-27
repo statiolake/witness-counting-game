@@ -6,6 +6,7 @@ type GameConfig struct {
 	field  FieldConfig
 	squads []SquadConfig
 	speed  float64
+	time   int
 }
 
 type FieldConfig struct {
@@ -28,12 +29,27 @@ type AgentConfig struct {
 	initPos geom.Coord
 }
 
-func NewGameConfig(field FieldConfig, speed float64) GameConfig {
+func NewGameConfig(field FieldConfig) GameConfig {
 	return GameConfig{
 		field:  field,
 		squads: []SquadConfig{},
-		speed:  speed,
+		speed:  1.0,
+		time:   100,
 	}
+}
+
+func (c *GameConfig) WithSpeed(speed float64) *GameConfig {
+	c.speed = speed
+	return c
+}
+
+func (c *GameConfig) WithTime(time int) *GameConfig {
+	c.time = time
+	return c
+}
+
+func (c *GameConfig) WithSquad(squad SquadConfig) {
+	c.squads = append(c.squads, squad)
 }
 
 func NewFieldConfig(width, height float64) FieldConfig {
@@ -50,12 +66,27 @@ func NewSquadConfig(name string) SquadConfig {
 	}
 }
 
-func NewAgentConfig(name string, kind Kind, initPos geom.Coord) AgentConfig {
+func (c *SquadConfig) WithAgent(agent AgentConfig) {
+	c.agents = append(c.agents, agent)
+}
+
+func NewAgentConfig(name string, kind Kind) AgentConfig {
 	return AgentConfig{
 		name:    name,
 		kind:    kind,
-		initPos: initPos,
+		initPos: geom.NewCoord(0, 0),
 	}
+}
+
+func (c *AgentConfig) WithInitPos(initPos geom.Coord) *AgentConfig {
+	c.initPos = initPos
+	return c
+}
+
+func (c *AgentConfig) WithRandomizedInitPos(field *FieldConfig) *AgentConfig {
+	// TODO: initPos をランダムに初期化する
+	panic("not implemented")
+	return c
 }
 
 func (c *GameConfig) GetFieldConfig() *FieldConfig {
@@ -84,12 +115,4 @@ func (c *ObstructionConfig) GetRect() geom.Rect {
 
 func (c *FieldConfig) AddObstructionConfig(obst ObstructionConfig) {
 	c.obsts = append(c.obsts, obst)
-}
-
-func (c *GameConfig) AddSquad(squad SquadConfig) {
-	c.squads = append(c.squads, squad)
-}
-
-func (c *SquadConfig) AddAgent(agent AgentConfig) {
-	c.agents = append(c.agents, agent)
 }

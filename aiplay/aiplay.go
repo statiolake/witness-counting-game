@@ -8,9 +8,26 @@ type AIPlay struct {
 }
 
 func NewAIPlay(config AIPlayConfig) AIPlay {
-	game := game.NewGame(&config.gameConfig)
+	for _, ai := range config.ais {
+		ai.Init(&config.gameConfig)
+	}
+
 	return AIPlay{
-		game: game,
+		game: game.NewGame(&config.gameConfig),
 		ais:  config.ais,
+	}
+}
+
+func (g *AIPlay) Step() bool {
+	// 各 AI に設定させる
+	for id, agent := range g.game.GetAgents() {
+		g.ais[id].Think(Knowledge{}, agent)
+	}
+
+	return g.game.Step()
+}
+
+func (g *AIPlay) StepAll() {
+	for g.Step() {
 	}
 }
