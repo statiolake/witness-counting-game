@@ -3,46 +3,34 @@ package aiplay
 import "github.com/statiolake/witness-counting-game/game"
 
 type AIPlayConfig struct {
-	gameConfig game.GameConfig
-	ais        []AI
+	GameConfig game.GameConfig
+	AIs        []AI
 }
 
 type SquadConfig struct {
-	name   string
-	agents []game.AgentConfig
-	ais    []AI
+	Name   string
+	Agents []game.AgentConfig
+	AIs    []AI
 }
 
-func NewAIPlayConfig(field game.FieldConfig, speed float64) AIPlayConfig {
-	return AIPlayConfig{
-		gameConfig: game.NewGameConfig(field, speed),
-		ais:        []AI{},
-	}
-}
-
-func NewSquadConfig(name string) SquadConfig {
-	return SquadConfig{
-		name:   name,
-		agents: []game.AgentConfig{},
-		ais:    []AI{},
-	}
-}
-
-func (c *AIPlayConfig) AddSquad(squad SquadConfig) {
-	squadConfig := game.NewSquadConfig(squad.name)
-
-	for _, agent := range squad.agents {
-		squadConfig.AddAgent(agent)
+func (c *AIPlayConfig) AddSquad(squad *SquadConfig) {
+	squadConfig := game.SquadConfig{
+		Name:   squad.Name,
+		Agents: []game.AgentConfig{},
 	}
 
-	for _, ai := range squad.ais {
-		c.ais = append(c.ais, ai)
+	for _, agent := range squad.Agents {
+		squadConfig.Agents = append(squadConfig.Agents, agent)
 	}
 
-	c.gameConfig.AddSquad(squadConfig)
+	for _, ai := range squad.AIs {
+		c.AIs = append(c.AIs, ai)
+	}
+
+	c.GameConfig.Squads = append(c.GameConfig.Squads, squadConfig)
 }
 
 func (c *SquadConfig) AddAgent(agent game.AgentConfig, ai AI) {
-	c.agents = append(c.agents, agent)
-	c.ais = append(c.ais, ai)
+	c.Agents = append(c.Agents, agent)
+	c.AIs = append(c.AIs, ai)
 }

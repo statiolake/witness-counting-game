@@ -8,9 +8,9 @@ type AIPlay struct {
 }
 
 func NewAIPlay(config AIPlayConfig) AIPlay {
-	game := game.NewGame(&config.gameConfig)
+	game := game.NewGame(config.GameConfig)
 	return AIPlay{
-		game: game,
-		ais:  config.ais,
+		game: &game,
+		ais:  config.AIs,
 	}
 }

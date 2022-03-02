@@ -14,99 +14,114 @@ const (
 )
 
 type Game struct {
-	config *GameConfig
-	field  *Field
-	squads []*Squad
-	agents []*Agent
+	Config GameConfig
+	Field  Field
+	Squads []Squad
+	Agents []Agent
 }
 
 type Field struct {
-	rect  geom.Rect
-	obsts []Obstruction
+	Rect  geom.Rect
+	Obsts []Obstruction
 }
 
 type Obstruction struct {
-	rect geom.Rect
+	Rect geom.Rect
 }
 
 type Squad struct {
-	id    int
-	name  string
-	alive bool
+	Id    int
+	Name  string
+	Alive bool
 }
 
 type Agent struct {
-	id         int
-	squad      int
-	name       string
-	kind       Kind
-	pos        geom.Coord
-	point      float64
-	nextAction *ActionMove
+	Id         int
+	Squad      int
+	Name       string
+	Kind       Kind
+	Pos        geom.Coord
+	Point      float64
+	NextAction *ActionMove
 }
 
 type ActionMove struct {
 	Dir geom.PolarVector
 }
 
-func NewGame(config *GameConfig) *Game {
+func NewGame(config GameConfig) Game {
 	obsts := []Obstruction{}
 
-	for _, obst := range config.field.obsts {
-		obsts = append(obsts, Obstruction{rect: obst.rect})
+	for _, obst := range config.Field.Obsts {
+		obsts = append(obsts, Obstruction(obst))
 	}
 
-	field := &Field{
-		rect:  config.field.rect,
-		obsts: obsts,
+	field := Field{
+		Rect:  config.Field.Rect,
+		Obsts: obsts,
 	}
 
-	squads := []*Squad{}
-	agents := []*Agent{}
+	squads := []Squad{}
+	agents := []Agent{}
 
-	for squadId, squad := range config.squads {
+	for squadId, squad := range config.Squads {
 		squads = append(squads, NewSquad(squadId, squad))
-		for _, agent := range squad.agents {
+		for _, agent := range squad.Agents {
 			// ID は squad ごとではなく完全にリストとして扱うので注意すべし
 			id := len(agents)
 			agents = append(agents, NewAgent(squadId, id, agent))
 		}
 	}
 
-	return &Game{
-		config: config,
-		field:  field,
-		squads: squads,
-		agents: agents,
+	return Game{
+		Config: config,
+		Field:  field,
+		Squads: squads,
+		Agents: agents,
 	}
 }
 
-func (g *Game) GetConfig() GameConfig {
-	return *g.config
-}
+func (g *Game) Clone() Game {
+	squads := make([]Squad, len(g.Squads))
+	copy(squads, g.Squads)
+	agents := make([]Agent, len(g.Agents))
+	copy(agents, g.Agents)
 
-func NewSquad(id int, squad SquadConfig) *Squad {
-	return &Squad{
-		id:    id,
-		name:  squad.name,
-		alive: true,
+	return Game{
+		Config: g.Config.Clone(),
+		Field:  g.Field.Clone(),
+		Squads: squads,
+		Agents: agents,
 	}
 }
 
-func NewAgent(squadId int, id int, agent AgentConfig) *Agent {
-	return &Agent{
-		id:         id,
-		squad:      squadId,
-		name:       agent.name,
-		kind:       agent.kind,
-		pos:        agent.initPos,
-		point:      0,
-		nextAction: &ActionMove{},
+func (f *Field) Clone() Field {
+	obsts := make([]Obstruction, len(f.Obsts))
+	copy(obsts, f.Obsts)
+	return Field{
+		Rect:  f.Rect,
+		Obsts: obsts,
 	}
 }
 
-func (a *Agent) GetPos() geom.Coord {
-	return a.pos
+func NewSquad(id int, squad SquadConfig) Squad {
+	return Squad{
+		Id:    id,
+		Name:  squad.Name,
+		Alive: true,
+	}
+}
+
+func NewAgent(squadId int, id int, agent AgentConfig) Agent {
+	return Agent{
+		Id:         id,
+		Squad:      squadId,
+		Name:       agent.Name,
+		Kind:       agent.Kind,
+		Pos:        agent.InitPos,
+		Point:      0,
+		NextAction: &ActionMove{},
+	}
 }
 
 func (g *Game) Step(ignoreError bool) error {
@@ -120,13 +135,14 @@ func (g *Game) Step(ignoreError bool) error {
 }
 
 func (g *Game) ProcessActions(ignoreError bool) error {
-	for idx, agent := range g.agents {
-		if idx != agent.id {
+	for idx := range g.Agents {
+		agent := &g.Agents[idx]
+		if idx != agent.Id {
 			panic(
 				fmt.Sprintf(
 					"internal error: index and id do not agree: %d and %d",
 					idx,
-					agent.id,
+					agent.Id,
 				),
 			)
 		}
@@ -143,42 +159,45 @@ func (g *Game) ProcessActions(ignoreError bool) error {
 func (g *Game) MoveScore() {
 	// まずは各 Runner が何人から見られているかを数える (それによって一人の
 	// Hunter がその Runner からもらえる得点がかわってくるので)
-	watchers := make([][]*Agent, len(g.agents))
-	for _, a := range g.agents {
-		if a.kind == Hunter {
-			watchers[a.id] = g.GetCapturedRunners(a)
-		} else if a.kind == Runner {
-			watchers[a.id] = g.GetWatchingHunters(a)
+	watchers := make([][]*Agent, len(g.Agents))
+	for idx := range g.Agents {
+		a := &g.Agents[idx]
+		if a.Kind == Hunter {
+			watchers[a.Id] = a.FindCapturedRunners(g)
+		} else if a.Kind == Runner {
+			watchers[a.Id] = a.FindWatchingHunters(g)
 		}
 	}
 
-	for _, a := range g.agents {
+	for idx := range g.Agents {
+		a := &g.Agents[idx]
 		var delta float64 = 0.0
-		if a.kind == Hunter {
+		if a.Kind == Hunter {
 			// Hunter の報酬は各 Runner が提供してくれるスコアの和
 			// 各 Runner はスコア 1.0 を見られているハンターへ等分する
 			// TODO: 等分だと「わざと自分のハンターに見られることで相手に点数
 			// が流出する量を減らす、という裏技が生まれてしまうので、よりいい
 			// 感じのスコアを考えるべし
-			for _, r := range watchers[a.id] {
-				delta += 1.0 / float64(len(watchers[r.id]))
+			for _, r := range watchers[a.Id] {
+				delta += 1.0 / float64(len(watchers[r.Id]))
 			}
 		}
-		if a.kind == Runner {
+		if a.Kind == Runner {
 			// Runner は Hunter に対してスコアを提供する
 			// 一人からでも見られている限り 1.0 を供出することになる
-			if len(watchers[a.id]) > 0 {
+			if len(watchers[a.Id]) > 0 {
 				delta = -1.0
 			}
 		}
-		a.point += delta
+		a.Point += delta
 	}
 }
 
-func (g *Game) GetWatchingHunters(agent *Agent) []*Agent {
+func (agent *Agent) FindWatchingHunters(g *Game) []*Agent {
 	res := []*Agent{}
-	for _, hunter := range g.agents {
-		if hunter.kind != Hunter {
+	for idx := range g.Agents {
+		hunter := &g.Agents[idx]
+		if hunter.Kind != Hunter {
 			continue
 		}
 
@@ -190,10 +209,11 @@ func (g *Game) GetWatchingHunters(agent *Agent) []*Agent {
 	return res
 }
 
-func (g *Game) GetCapturedRunners(hunter *Agent) []*Agent {
+func (hunter *Agent) FindCapturedRunners(g *Game) []*Agent {
 	res := []*Agent{}
-	for _, agent := range g.agents {
-		if agent.kind != Runner {
+	for idx := range g.Agents {
+		agent := &g.Agents[idx]
+		if agent.Kind != Runner {
 			continue
 		}
 
@@ -214,12 +234,12 @@ func (a *Agent) ApplyActionOn(g *Game) (bool, error) {
 	if !a.isRegisteredOn(g) {
 		return false, fmt.Errorf(
 			"agent %s/%s is not registered",
-			g.squads[a.squad].name,
-			a.name,
+			g.Squads[a.Squad].Name,
+			a.Name,
 		)
 	}
 
-	action := a.nextAction
+	action := a.NextAction
 	if action == nil {
 		// 移動しないが別にエラーではない
 		return false, nil
@@ -227,27 +247,24 @@ func (a *Agent) ApplyActionOn(g *Game) (bool, error) {
 
 	// 実際に位置を移動する
 	vec_dir := action.Dir.ToVector()
-	new_pos := a.pos.Add(vec_dir).AsCoord()
+	new_pos := a.Pos.Add(vec_dir).AsCoord()
 
-	if !g.field.MovableTo(a, new_pos) {
+	if !g.Field.MovableTo(a, new_pos) {
 		// 移動できないので何もしない
 		return false, fmt.Errorf("cannot move to %s", new_pos.ToString())
 	}
 
-	a.pos = new_pos
+	a.Pos = new_pos
 	return true, nil
 }
 
 func (f *Field) MovableTo(agent *Agent, new_pos geom.Coord) bool {
-	return (f.rect.LT.X <= new_pos.X &&
-		new_pos.X <= f.rect.RB.X &&
-		f.rect.LT.Y <= new_pos.Y &&
-		new_pos.Y <= f.rect.RB.Y)
+	return (f.Rect.LT.X <= new_pos.X &&
+		new_pos.X <= f.Rect.RB.X &&
+		f.Rect.LT.Y <= new_pos.Y &&
+		new_pos.Y <= f.Rect.RB.Y)
 }
 
 func (a *Agent) isRegisteredOn(g *Game) bool {
-	if a.id >= len(g.agents) {
-		return false
-	}
-	return g.agents[a.id] == a
+	return a.Id < len(g.Agents) && &g.Agents[a.Id] == a
 }

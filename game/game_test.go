@@ -12,24 +12,24 @@ func TestStateSetup(t *testing.T) {
 	g := dummyGame()
 
 	t.Run("SquadsIndexIdAgreement", func(t *testing.T) {
-		for idx, squad := range g.squads {
-			if idx != squad.id {
+		for idx, squad := range g.Squads {
+			if idx != squad.Id {
 				t.Errorf(
 					"Squad id and index do not agree: %d and %d",
 					idx,
-					squad.id,
+					squad.Id,
 				)
 			}
 		}
 	})
 
 	t.Run("AgentsIndexIdAgreement", func(t *testing.T) {
-		for idx, agent := range g.agents {
-			if idx != agent.id {
+		for idx, agent := range g.Agents {
+			if idx != agent.Id {
 				t.Errorf(
 					"Agent id and index do not agree: %d and %d",
 					idx,
-					agent.id,
+					agent.Id,
 				)
 			}
 		}
@@ -39,14 +39,14 @@ func TestStateSetup(t *testing.T) {
 func TestApplyActionFor(t *testing.T) {
 	g := dummyGame()
 	t.Run("RightAbove45", func(t *testing.T) {
-		agent := g.agents[0]
+		agent := &g.Agents[0]
 
 		// 右上斜め 45 度にこのエージェントを動かしてみる
-		agent.nextAction = &ActionMove{
+		agent.NextAction = &ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
 		}
 
-		ok, err := agent.ApplyActionOn(g)
+		ok, err := agent.ApplyActionOn(&g)
 		if err != nil {
 			t.Fatalf("action didn't apply: %v", err)
 		}
@@ -56,21 +56,21 @@ func TestApplyActionFor(t *testing.T) {
 		}
 
 		expected := geom.NewCoord(1/math.Sqrt(2), 1/math.Sqrt(2))
-		actual := agent.GetPos()
+		actual := agent.Pos
 		if !eq(actual.X, expected.X) || !eq(actual.Y, expected.Y) {
 			t.Fatalf("expected %v but actual %v", expected, actual)
 		}
 	})
 
 	t.Run("OutsideOfField", func(t *testing.T) {
-		agent := g.agents[0]
+		agent := &g.Agents[0]
 
 		// 遠くへ移動しようとしてみる
-		agent.nextAction = &ActionMove{
+		agent.NextAction = &ActionMove{
 			Dir: geom.NewPolarVector(1e5, 0),
 		}
 
-		ok, err := agent.ApplyActionOn(g)
+		ok, err := agent.ApplyActionOn(&g)
 
 		if err == nil {
 			t.Fatalf("too far moving accepted")
@@ -83,16 +83,16 @@ func TestApplyActionFor(t *testing.T) {
 
 	t.Run("InvalidAgent", func(t *testing.T) {
 		agent := Agent{
-			id:         0,
-			squad:      0,
-			name:       "",
-			kind:       0,
-			pos:        geom.NewCoord(0, 0),
-			point:      0,
-			nextAction: &ActionMove{Dir: geom.NewPolarVector(1, 0)},
+			Id:         0,
+			Squad:      0,
+			Name:       "",
+			Kind:       0,
+			Pos:        geom.NewCoord(0, 0),
+			Point:      0,
+			NextAction: &ActionMove{Dir: geom.NewPolarVector(1, 0)},
 		}
 
-		ok, err := agent.ApplyActionOn(g)
+		ok, err := agent.ApplyActionOn(&g)
 
 		if err == nil {
 			t.Fatalf("invalid agent accepted")
@@ -107,10 +107,10 @@ func TestApplyActionFor(t *testing.T) {
 func TestStep(t *testing.T) {
 	t.Run("OneAgentHasAction", func(t *testing.T) {
 		g := dummyGame()
-		agent := g.agents[0]
+		agent := &g.Agents[0]
 
 		// 右上斜め 45 度にこのエージェントを動かしてみる
-		agent.nextAction = &ActionMove{
+		agent.NextAction = &ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
 		}
 
@@ -119,7 +119,7 @@ func TestStep(t *testing.T) {
 		}
 
 		expected := geom.NewCoord(1/math.Sqrt(2), 1/math.Sqrt(2))
-		actual := agent.GetPos()
+		actual := agent.Pos
 		if !eq(actual.X, expected.X) || !eq(actual.Y, expected.Y) {
 			t.Fatalf("expected %v but actual %v", expected, actual)
 		}
@@ -129,14 +129,14 @@ func TestStep(t *testing.T) {
 		g := dummyGame()
 
 		// 右上斜め 45 度にこのエージェントを動かしてみる
-		ag0 := g.agents[0]
-		ag0.nextAction = &ActionMove{
+		ag0 := &g.Agents[0]
+		ag0.NextAction = &ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
 		}
 
 		// 左上斜め 45 度にこのエージェントを動かしてみる
-		ag1 := g.agents[1]
-		ag1.nextAction = &ActionMove{
+		ag1 := &g.Agents[1]
+		ag1.NextAction = &ActionMove{
 			Dir: geom.NewPolarVector(1, 3*math.Pi/4),
 		}
 
@@ -146,33 +146,33 @@ func TestStep(t *testing.T) {
 
 		// ag0 の位置を確認
 		expected := geom.NewCoord(1/math.Sqrt(2), 1/math.Sqrt(2))
-		actual := ag0.GetPos()
+		actual := ag0.Pos
 		if !eq(actual.X, expected.X) || !eq(actual.Y, expected.Y) {
 			t.Fatalf("expected %v but actual %v", expected, actual)
 		}
 
 		// ag1 の位置を確認
 		expected = geom.NewCoord(-1/math.Sqrt(2), 1/math.Sqrt(2))
-		actual = ag1.GetPos()
+		actual = ag1.Pos
 		if !eq(actual.X, expected.X) || !eq(actual.Y, expected.Y) {
 			t.Fatalf("expected %v but actual %v", expected, actual)
 		}
 
 		// スコアを確認
 		// 現状は障害物がないのでそのまま人数が出てくるはず。
-		for _, a := range g.agents {
-			if a.kind == Hunter {
+		for _, a := range g.Agents {
+			if a.Kind == Hunter {
 				// Hunter の場合、 cfg.squads の数だけ Runner がいるから、そ
 				// れぞれから 1/cfg.squads だけもらっていて、結局 +1
-				if !eq(a.point, 1.0) {
-					t.Fatalf("expected %v but actual %v", 1.0, a.point)
+				if !eq(a.Point, 1.0) {
+					t.Fatalf("expected %v but actual %v", 1.0, a.Point)
 				}
 			}
 
-			if a.kind == Runner {
+			if a.Kind == Runner {
 				// Runner の場合、誰かには見られているので結局 -1
-				if !eq(a.point, -1.0) {
-					t.Fatalf("expected %v but actual %v", 1.0, a.point)
+				if !eq(a.Point, -1.0) {
+					t.Fatalf("expected %v but actual %v", 1.0, a.Point)
 				}
 			}
 		}
@@ -183,7 +183,7 @@ func eq(a, b float64) bool {
 	return math.Abs(a-b) < 1e-8
 }
 
-func createConfig() *GameConfig {
+func createConfig() GameConfig {
 	numSquads := 5
 
 	squads := []SquadConfig{}
@@ -191,32 +191,32 @@ func createConfig() *GameConfig {
 		name := fmt.Sprintf("squad-%02d", i)
 		agentBase := fmt.Sprintf("agent-%02d", i)
 		squads = append(squads, SquadConfig{
-			name: name,
-			agents: []AgentConfig{
+			Name: name,
+			Agents: []AgentConfig{
 				{
-					name:    agentBase + "h",
-					kind:    Hunter,
-					initPos: geom.NewCoord(0, 0),
+					Name:    agentBase + "h",
+					Kind:    Hunter,
+					InitPos: geom.NewCoord(0, 0),
 				},
 				{
-					name:    agentBase + "r",
-					kind:    Runner,
-					initPos: geom.NewCoord(0, 0),
+					Name:    agentBase + "r",
+					Kind:    Runner,
+					InitPos: geom.NewCoord(0, 0),
 				},
 			},
 		})
 	}
 
-	return &GameConfig{
-		field: FieldConfig{
-			rect:  geom.NewRectFromPoints(-50.0, -50.0, 50.0, 50.0),
-			obsts: []ObstructionConfig{},
+	return GameConfig{
+		Field: FieldConfig{
+			Rect:  geom.NewRectFromPoints(-50.0, -50.0, 50.0, 50.0),
+			Obsts: []ObstructionConfig{},
 		},
-		squads: squads,
-		speed:  0,
+		Squads: squads,
+		Speed:  0,
 	}
 }
 
-func dummyGame() *Game {
+func dummyGame() Game {
 	return NewGame(createConfig())
 }
