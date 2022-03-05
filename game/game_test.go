@@ -84,7 +84,7 @@ func TestApplyActionFor(t *testing.T) {
 	t.Run("InvalidAgent", func(t *testing.T) {
 		agent := Agent{
 			Id:         0,
-			Squad:      0,
+			SquadId:    0,
 			Name:       "",
 			Kind:       0,
 			Pos:        geom.NewCoord(0, 0),
@@ -114,8 +114,8 @@ func TestStep(t *testing.T) {
 			Dir: geom.NewPolarVector(1, math.Pi/4),
 		}
 
-		if err := g.Step(false); err != nil {
-			t.Fatalf("step failed: %v", err)
+		if err := g.Step(); err != nil {
+			t.Fatalf("step failed: %w", err)
 		}
 
 		expected := geom.NewCoord(1/math.Sqrt(2), 1/math.Sqrt(2))
@@ -140,7 +140,7 @@ func TestStep(t *testing.T) {
 			Dir: geom.NewPolarVector(1, 3*math.Pi/4),
 		}
 
-		if err := g.Step(false); err != nil {
+		if err := g.Step(); err != nil {
 			t.Fatalf("step failed: %v", err)
 		}
 

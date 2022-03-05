@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/statiolake/witness-counting-game/geom"
 )
 
@@ -20,6 +21,10 @@ type Game struct {
 	Agents []Agent
 }
 
+// TODO: 渡す情報は考えるべし
+type Knowledge struct {
+}
+
 type Field struct {
 	Rect  geom.Rect
 	Obsts []Obstruction
@@ -30,14 +35,13 @@ type Obstruction struct {
 }
 
 type Squad struct {
-	Id    int
-	Name  string
-	Alive bool
+	Id   int
+	Name string
 }
 
 type Agent struct {
 	Id         int
-	Squad      int
+	SquadId    int
 	Name       string
 	Kind       Kind
 	Pos        geom.Coord
@@ -65,11 +69,22 @@ func NewGame(config GameConfig) Game {
 	agents := []Agent{}
 
 	for squadId, squad := range config.Squads {
-		squads = append(squads, NewSquad(squadId, squad))
+		squads = append(squads, Squad{
+			Id:   squadId,
+			Name: squad.Name,
+		})
 		for _, agent := range squad.Agents {
 			// ID は squad ごとではなく完全にリストとして扱うので注意すべし
 			id := len(agents)
-			agents = append(agents, NewAgent(squadId, id, agent))
+			agents = append(agents, Agent{
+				Id:         id,
+				SquadId:    squadId,
+				Name:       agent.Name,
+				Kind:       agent.Kind,
+				Pos:        agent.InitPos,
+				Point:      0,
+				NextAction: nil,
+			})
 		}
 	}
 
@@ -104,28 +119,12 @@ func (f *Field) Clone() Field {
 	}
 }
 
-func NewSquad(id int, squad SquadConfig) Squad {
-	return Squad{
-		Id:    id,
-		Name:  squad.Name,
-		Alive: true,
-	}
+func (g *Game) GetKnowledgeFor(agent *Agent) Knowledge {
+	return Knowledge{}
 }
 
-func NewAgent(squadId int, id int, agent AgentConfig) Agent {
-	return Agent{
-		Id:         id,
-		Squad:      squadId,
-		Name:       agent.Name,
-		Kind:       agent.Kind,
-		Pos:        agent.InitPos,
-		Point:      0,
-		NextAction: &ActionMove{},
-	}
-}
-
-func (g *Game) Step(ignoreError bool) error {
-	if err := g.ProcessActions(true); err != nil {
+func (g *Game) Step() error {
+	if err := g.ProcessActions(); err != nil {
 		return err
 	}
 
@@ -134,7 +133,7 @@ func (g *Game) Step(ignoreError bool) error {
 	return nil
 }
 
-func (g *Game) ProcessActions(ignoreError bool) error {
+func (g *Game) ProcessActions() (errs error) {
 	for idx := range g.Agents {
 		agent := &g.Agents[idx]
 		if idx != agent.Id {
@@ -147,13 +146,17 @@ func (g *Game) ProcessActions(ignoreError bool) error {
 			)
 		}
 
-		// 次の行動が設定されているのであれば適用する
-		if _, err := agent.ApplyActionOn(g); !ignoreError && err != nil {
-			return fmt.Errorf("failed to execute a step: %w", err)
+		// 次の行動が設定されているのであれば適用する。
+		if _, err := agent.ApplyActionOn(g); err != nil {
+			errs = multierror.Append(errs, fmt.Errorf(
+				"failed to execute a step in agent %s: %w",
+				g.DescribeAgent(agent),
+				err),
+			)
 		}
 	}
 
-	return nil
+	return
 }
 
 func (g *Game) MoveScore() {
@@ -191,6 +194,14 @@ func (g *Game) MoveScore() {
 		}
 		a.Point += delta
 	}
+}
+
+func (game *Game) DescribeAgent(agent *Agent) string {
+	return fmt.Sprintf(
+		"%s/%s",
+		game.Squads[agent.SquadId].Name,
+		agent.Name,
+	)
 }
 
 func (agent *Agent) FindWatchingHunters(g *Game) []*Agent {
@@ -233,9 +244,8 @@ func (from *Agent) IsWatching(to *Agent, g *Game) bool {
 func (a *Agent) ApplyActionOn(g *Game) (bool, error) {
 	if !a.isRegisteredOn(g) {
 		return false, fmt.Errorf(
-			"agent %s/%s is not registered",
-			g.Squads[a.Squad].Name,
-			a.Name,
+			"agent %s is not registered",
+			g.DescribeAgent(a),
 		)
 	}
 
