@@ -17,11 +17,11 @@ func (ai *constAI) Init(config game.GameConfig) error {
 	return nil
 }
 
-func (ai *constAI) Think(knowledge game.Knowledge, agent *game.Agent) error {
-	agent.NextAction = &game.ActionMove{
-		Dir: ai.Dir,
-	}
-	return nil
+func (ai *constAI) Think(
+	knowledge game.Knowledge,
+	agent game.Agent,
+) (*game.ActionMove, error) {
+	return &game.ActionMove{Dir: ai.Dir}, nil
 }
 
 func main() {

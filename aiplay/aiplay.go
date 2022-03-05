@@ -9,7 +9,7 @@ import (
 
 type AI interface {
 	Init(config game.GameConfig) error
-	Think(knowledge game.Knowledge, agent *game.Agent) error
+	Think(knowledge game.Knowledge, agent game.Agent) (*game.ActionMove, error)
 }
 
 type AIPlay struct {
@@ -52,13 +52,18 @@ func (g *AIPlay) decideActions() (errs error) {
 	for idx := range g.AIs {
 		agent := &g.Game.Agents[idx]
 		ai := g.AIs[idx]
-		err := ai.Think(g.Game.GetKnowledgeFor(agent), agent)
+		action, err := ai.Think(
+			g.Game.GetKnowledgeFor(agent),
+			agent.Clone(),
+		)
 		if err != nil {
 			errs = multierror.Append(errs, fmt.Errorf(
 				"agent %s: %w",
 				g.Game.DescribeAgent(agent),
 				err,
 			))
+		} else {
+			agent.NextAction = action
 		}
 	}
 

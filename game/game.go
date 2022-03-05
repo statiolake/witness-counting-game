@@ -122,6 +122,25 @@ func (f *Field) Clone() Field {
 	}
 }
 
+func (a *Agent) Clone() Agent {
+	// ポインタなので NextAction を丁寧にコピーする必要がある
+	var nextAction *ActionMove
+	if a.NextAction != nil {
+		action := *a.NextAction
+		nextAction = &action
+	}
+
+	return Agent{
+		Id:         a.Id,
+		SquadId:    a.SquadId,
+		Name:       a.Name,
+		Kind:       a.Kind,
+		Pos:        a.Pos,
+		Point:      a.Point,
+		NextAction: nextAction,
+	}
+}
+
 func (g *Game) GetKnowledgeFor(agent *Agent) Knowledge {
 	return Knowledge{}
 }
