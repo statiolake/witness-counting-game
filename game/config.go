@@ -6,6 +6,7 @@ type GameConfig struct {
 	Field  FieldConfig
 	Squads []SquadConfig
 	Speed  float64
+	Time   int
 }
 
 type FieldConfig struct {

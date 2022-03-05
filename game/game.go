@@ -15,10 +15,11 @@ const (
 )
 
 type Game struct {
-	Config GameConfig
-	Field  Field
-	Squads []Squad
-	Agents []Agent
+	Config        GameConfig
+	Field         Field
+	Squads        []Squad
+	Agents        []Agent
+	TimeRemaining int
 }
 
 // TODO: 渡す情報は考えるべし
@@ -89,10 +90,11 @@ func NewGame(config GameConfig) Game {
 	}
 
 	return Game{
-		Config: config,
-		Field:  field,
-		Squads: squads,
-		Agents: agents,
+		Config:        config,
+		Field:         field,
+		Squads:        squads,
+		Agents:        agents,
+		TimeRemaining: config.Time,
 	}
 }
 
@@ -103,10 +105,11 @@ func (g *Game) Clone() Game {
 	copy(agents, g.Agents)
 
 	return Game{
-		Config: g.Config.Clone(),
-		Field:  g.Field.Clone(),
-		Squads: squads,
-		Agents: agents,
+		Config:        g.Config.Clone(),
+		Field:         g.Field.Clone(),
+		Squads:        squads,
+		Agents:        agents,
+		TimeRemaining: g.TimeRemaining,
 	}
 }
 
@@ -123,77 +126,24 @@ func (g *Game) GetKnowledgeFor(agent *Agent) Knowledge {
 	return Knowledge{}
 }
 
+func (g *Game) IsFinished() bool {
+	return g.TimeRemaining == 0
+}
+
 func (g *Game) Step() error {
-	if err := g.ProcessActions(); err != nil {
-		return err
+	if g.IsFinished() {
+		return fmt.Errorf("Attempted to step an finished game")
 	}
 
-	g.MoveScore()
+	// エラーは無視する (ゲーム中は基本的にエラーがあっても継続してほしい;
+	// エージェントが不正な命令を出した場合の処理は無視)
+	// TODO: 一発退場のような重たい罰にするべき？
+	_ = g.processActions()
+
+	g.moveScore()
+	g.TimeRemaining--
 
 	return nil
-}
-
-func (g *Game) ProcessActions() (errs error) {
-	for idx := range g.Agents {
-		agent := &g.Agents[idx]
-		if idx != agent.Id {
-			panic(
-				fmt.Sprintf(
-					"internal error: index and id do not agree: %d and %d",
-					idx,
-					agent.Id,
-				),
-			)
-		}
-
-		// 次の行動が設定されているのであれば適用する。
-		if _, err := agent.ApplyActionOn(g); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf(
-				"failed to execute a step in agent %s: %w",
-				g.DescribeAgent(agent),
-				err),
-			)
-		}
-	}
-
-	return
-}
-
-func (g *Game) MoveScore() {
-	// まずは各 Runner が何人から見られているかを数える (それによって一人の
-	// Hunter がその Runner からもらえる得点がかわってくるので)
-	watchers := make([][]*Agent, len(g.Agents))
-	for idx := range g.Agents {
-		a := &g.Agents[idx]
-		if a.Kind == Hunter {
-			watchers[a.Id] = a.FindCapturedRunners(g)
-		} else if a.Kind == Runner {
-			watchers[a.Id] = a.FindWatchingHunters(g)
-		}
-	}
-
-	for idx := range g.Agents {
-		a := &g.Agents[idx]
-		var delta float64 = 0.0
-		if a.Kind == Hunter {
-			// Hunter の報酬は各 Runner が提供してくれるスコアの和
-			// 各 Runner はスコア 1.0 を見られているハンターへ等分する
-			// TODO: 等分だと「わざと自分のハンターに見られることで相手に点数
-			// が流出する量を減らす、という裏技が生まれてしまうので、よりいい
-			// 感じのスコアを考えるべし
-			for _, r := range watchers[a.Id] {
-				delta += 1.0 / float64(len(watchers[r.Id]))
-			}
-		}
-		if a.Kind == Runner {
-			// Runner は Hunter に対してスコアを提供する
-			// 一人からでも見られている限り 1.0 を供出することになる
-			if len(watchers[a.Id]) > 0 {
-				delta = -1.0
-			}
-		}
-		a.Point += delta
-	}
 }
 
 func (game *Game) DescribeAgent(agent *Agent) string {
@@ -241,7 +191,44 @@ func (from *Agent) IsWatching(to *Agent, g *Game) bool {
 	return true
 }
 
-func (a *Agent) ApplyActionOn(g *Game) (bool, error) {
+func (f *Field) MovableTo(agent *Agent, new_pos geom.Coord) bool {
+	return (f.Rect.LT.X <= new_pos.X &&
+		new_pos.X <= f.Rect.RB.X &&
+		f.Rect.LT.Y <= new_pos.Y &&
+		new_pos.Y <= f.Rect.RB.Y)
+}
+
+func (a *Agent) isRegisteredOn(g *Game) bool {
+	return a.Id < len(g.Agents) && &g.Agents[a.Id] == a
+}
+
+func (g *Game) processActions() (errs error) {
+	for idx := range g.Agents {
+		agent := &g.Agents[idx]
+		if idx != agent.Id {
+			panic(
+				fmt.Sprintf(
+					"internal error: index and id do not agree: %d and %d",
+					idx,
+					agent.Id,
+				),
+			)
+		}
+
+		// 次の行動が設定されているのであれば適用する。
+		if _, err := agent.applyActionOn(g); err != nil {
+			errs = multierror.Append(errs, fmt.Errorf(
+				"failed to execute a step in agent %s: %w",
+				g.DescribeAgent(agent),
+				err),
+			)
+		}
+	}
+
+	return
+}
+
+func (a *Agent) applyActionOn(g *Game) (bool, error) {
 	if !a.isRegisteredOn(g) {
 		return false, fmt.Errorf(
 			"agent %s is not registered",
@@ -268,13 +255,39 @@ func (a *Agent) ApplyActionOn(g *Game) (bool, error) {
 	return true, nil
 }
 
-func (f *Field) MovableTo(agent *Agent, new_pos geom.Coord) bool {
-	return (f.Rect.LT.X <= new_pos.X &&
-		new_pos.X <= f.Rect.RB.X &&
-		f.Rect.LT.Y <= new_pos.Y &&
-		new_pos.Y <= f.Rect.RB.Y)
-}
+func (g *Game) moveScore() {
+	// まずは各 Runner が何人から見られているかを数える (それによって一人の
+	// Hunter がその Runner からもらえる得点がかわってくるので)
+	watchers := make([][]*Agent, len(g.Agents))
+	for idx := range g.Agents {
+		a := &g.Agents[idx]
+		if a.Kind == Hunter {
+			watchers[a.Id] = a.FindCapturedRunners(g)
+		} else if a.Kind == Runner {
+			watchers[a.Id] = a.FindWatchingHunters(g)
+		}
+	}
 
-func (a *Agent) isRegisteredOn(g *Game) bool {
-	return a.Id < len(g.Agents) && &g.Agents[a.Id] == a
+	for idx := range g.Agents {
+		a := &g.Agents[idx]
+		var delta float64 = 0.0
+		if a.Kind == Hunter {
+			// Hunter の報酬は各 Runner が提供してくれるスコアの和
+			// 各 Runner はスコア 1.0 を見られているハンターへ等分する
+			// TODO: 等分だと「わざと自分のハンターに見られることで相手に点数
+			// が流出する量を減らす、という裏技が生まれてしまうので、よりいい
+			// 感じのスコアを考えるべし
+			for _, r := range watchers[a.Id] {
+				delta += 1.0 / float64(len(watchers[r.Id]))
+			}
+		}
+		if a.Kind == Runner {
+			// Runner は Hunter に対してスコアを提供する
+			// 一人からでも見られている限り 1.0 を供出することになる
+			if len(watchers[a.Id]) > 0 {
+				delta = -1.0
+			}
+		}
+		a.Point += delta
+	}
 }

@@ -13,7 +13,7 @@ type SquadConfig struct {
 	AIs    []AI
 }
 
-func (c *AIPlayConfig) AddSquad(squad *SquadConfig) {
+func (c *AIPlayConfig) AddSquad(squad SquadConfig) {
 	squadConfig := game.SquadConfig{
 		Name:   squad.Name,
 		Agents: []game.AgentConfig{},

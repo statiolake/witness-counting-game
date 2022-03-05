@@ -43,6 +43,35 @@ func TestConstAI(t *testing.T) {
 	})
 }
 
+func TestStepAll(t *testing.T) {
+	t.Run("StepAll", func(t *testing.T) {
+		g := createAIPlay()
+		snapshots, err := g.StepAll()
+		if err != nil {
+			t.Fatalf("StepAll() failed: %v", err)
+		}
+
+		if len(snapshots) != g.Game.Config.Time+1 {
+			t.Fatalf(
+				"only %d snapshots (in %d turn) returned",
+				len(snapshots), g.Game.Config.Time,
+			)
+		}
+
+		if !snapshots[len(snapshots)-1].IsFinished() {
+			t.Fatalf("last snapshot is not finished game")
+		}
+
+		expected := geom.NewCoord(
+			math.Min(1.0*float64(g.Game.Config.Time), g.Game.Field.Rect.RB.X), 0,
+		)
+		actual := g.Game.Agents[0].Pos
+		if !eq(actual.X, expected.X) || !eq(actual.Y, expected.Y) {
+			t.Fatalf("expected %v but actual %v", expected, actual)
+		}
+	})
+}
+
 func eq(a, b float64) bool {
 	return math.Abs(a-b) < 1e-8
 }
@@ -76,6 +105,7 @@ func createConfig() AIPlayConfig {
 			},
 			&constAI{Dir: geom.NewPolarVector(1, 0)},
 		)
+
 		squad.AddAgent(
 			game.AgentConfig{
 				Name:    agentBase + "r",
@@ -84,6 +114,7 @@ func createConfig() AIPlayConfig {
 			},
 			&constAI{Dir: geom.NewPolarVector(1, 0)},
 		)
+		config.AddSquad(squad)
 	}
 
 	return config
@@ -97,5 +128,6 @@ func createGameConfig() game.GameConfig {
 		},
 		Squads: []game.SquadConfig{},
 		Speed:  1,
+		Time:   100,
 	}
 }

@@ -25,6 +25,17 @@ func NewAIPlay(config AIPlayConfig) AIPlay {
 	}
 }
 
+func (g *AIPlay) StepAll() (snapshots []game.Game, err error) {
+	snapshots = append(snapshots, g.Game.Clone())
+	for !g.Game.IsFinished() {
+		if err = g.Step(); err != nil {
+			return
+		}
+		snapshots = append(snapshots, g.Game.Clone())
+	}
+	return
+}
+
 func (g *AIPlay) Step() error {
 	if err := g.decideActions(); err != nil {
 		return fmt.Errorf("failed to decide actions: %w", err)
