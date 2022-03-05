@@ -25,6 +25,10 @@ type Rect struct {
 	LT, RB Coord
 }
 
+type Line struct {
+	A, B Coord
+}
+
 type Direction struct {
 	t float64
 }

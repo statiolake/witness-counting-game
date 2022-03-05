@@ -15,7 +15,7 @@ type FieldConfig struct {
 }
 
 type ObstructionConfig struct {
-	Rect geom.Rect
+	Line geom.Line
 }
 
 type SquadConfig struct {

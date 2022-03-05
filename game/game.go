@@ -32,7 +32,7 @@ type Field struct {
 }
 
 type Obstruction struct {
-	Rect geom.Rect
+	Line geom.Line
 }
 
 type Squad struct {
