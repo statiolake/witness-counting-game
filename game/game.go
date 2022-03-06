@@ -156,6 +156,7 @@ func (g *Game) Step() error {
 		return fmt.Errorf("attempted to step an finished game")
 	}
 
+	g.resetAgents()
 	// エラーは無視する (ゲーム中は基本的にエラーがあっても継続してほしい;
 	// エージェントが不正な命令を出した場合の処理は無視)
 	// TODO: 一発退場のような重たい罰にするべき？
@@ -221,6 +222,18 @@ func (f *Field) MovableTo(agent *Agent, new_pos geom.Coord) bool {
 
 func (a *Agent) isRegisteredOn(g *Game) bool {
 	return a.Id < len(g.Agents) && &g.Agents[a.Id] == a
+}
+
+// エージェントの NextAction やポイント変動情報をリセットする
+func (g *Game) resetAgents() {
+	for idx := range g.Agents {
+		g.Agents[idx].reset()
+	}
+}
+
+func (a *Agent) reset() {
+	a.NextAction = nil
+	// TODO: ポイント変動情報もリセットする
 }
 
 func (g *Game) processActions() (errs error) {
