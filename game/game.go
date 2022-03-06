@@ -47,7 +47,15 @@ type Agent struct {
 	Kind       Kind
 	Pos        geom.Coord
 	Point      float64
-	NextAction *ActionMove
+	PointGains []PointGain
+	Action     *ActionMove
+}
+
+// Runner が Hunter にポイントを提供するときは負の Gain として扱う。
+// 「Runner は Hunter から -1.0 ポイントを獲得した」
+type PointGain struct {
+	GainedFrom *Agent
+	Gain       float64
 }
 
 type ActionMove struct {
@@ -84,7 +92,8 @@ func NewGame(config GameConfig) Game {
 				Kind:       agent.Kind,
 				Pos:        agent.InitPos,
 				Point:      0,
-				NextAction: nil,
+				PointGains: []PointGain{},
+				Action:     nil,
 			})
 		}
 	}
@@ -127,10 +136,13 @@ func (f *Field) Clone() Field {
 func (a *Agent) Clone() Agent {
 	// ポインタなので NextAction を丁寧にコピーする必要がある
 	var nextAction *ActionMove
-	if a.NextAction != nil {
-		action := *a.NextAction
+	if a.Action != nil {
+		action := *a.Action
 		nextAction = &action
 	}
+
+	pointGains := make([]PointGain, len(a.PointGains))
+	copy(pointGains, a.PointGains)
 
 	return Agent{
 		Id:         a.Id,
@@ -139,7 +151,8 @@ func (a *Agent) Clone() Agent {
 		Kind:       a.Kind,
 		Pos:        a.Pos,
 		Point:      a.Point,
-		NextAction: nextAction,
+		PointGains: pointGains,
+		Action:     nextAction,
 	}
 }
 
@@ -151,12 +164,11 @@ func (g *Game) IsFinished() bool {
 	return g.TimeRemaining == 0
 }
 
-func (g *Game) Step() error {
+func (g *Game) CommitTurn() error {
 	if g.IsFinished() {
 		return fmt.Errorf("attempted to step an finished game")
 	}
 
-	g.resetAgents()
 	// エラーは無視する (ゲーム中は基本的にエラーがあっても継続してほしい;
 	// エージェントが不正な命令を出した場合の処理は無視)
 	// TODO: 一発退場のような重たい罰にするべき？
@@ -225,15 +237,15 @@ func (a *Agent) isRegisteredOn(g *Game) bool {
 }
 
 // エージェントの NextAction やポイント変動情報をリセットする
-func (g *Game) resetAgents() {
+func (g *Game) StartTurn() {
 	for idx := range g.Agents {
-		g.Agents[idx].reset()
+		g.Agents[idx].startTurn()
 	}
 }
 
-func (a *Agent) reset() {
-	a.NextAction = nil
-	// TODO: ポイント変動情報もリセットする
+func (a *Agent) startTurn() {
+	a.Action = nil
+	a.PointGains = []PointGain{}
 }
 
 func (g *Game) processActions() (errs error) {
@@ -254,8 +266,8 @@ func (g *Game) processActions() (errs error) {
 			errs = multierror.Append(errs, fmt.Errorf(
 				"failed to execute a step in agent %s: %w",
 				g.DescribeAgent(agent),
-				err),
-			)
+				err,
+			))
 		}
 	}
 
@@ -270,7 +282,7 @@ func (a *Agent) applyActionOn(g *Game) (bool, error) {
 		)
 	}
 
-	action := a.NextAction
+	action := a.Action
 	if action == nil {
 		// 移動しないが別にエラーではない
 		return false, nil
@@ -290,6 +302,8 @@ func (a *Agent) applyActionOn(g *Game) (bool, error) {
 }
 
 func (g *Game) moveScore() {
+	// TODO: Hunter か Runner のどちらかから見るだけでよくない (それにより不整
+	// 合も減らせる)
 	// まずは各 Runner が何人から見られているかを数える (それによって一人の
 	// Hunter がその Runner からもらえる得点がかわってくるので)
 	watchers := make([][]*Agent, len(g.Agents))
@@ -306,23 +320,42 @@ func (g *Game) moveScore() {
 	for idx := range g.Agents {
 		a := &g.Agents[idx]
 		delta := 0.0
-		if a.Kind == Hunter {
+
+		switch a.Kind {
+		case Hunter:
 			// Hunter の報酬は各 Runner が提供してくれるスコアの和
 			// 各 Runner はスコア 1.0 を見られているハンターへ等分する
-			// TODO: 等分だと「わざと自分のハンターに見られることで相手に点数
-			// が流出する量を減らす、という裏技が生まれてしまうので、よりいい
-			// 感じのスコアを考えるべし
-			for _, r := range watchers[a.Id] {
-				delta += 1.0 / float64(len(watchers[r.Id]))
+			for _, runner := range watchers[a.Id] {
+				// この Hunter が見ている Runner から点数をもらう。もらえる点
+				// 数は Runner が何人の Hunter から見られているかに依存する。
+				// TODO: 等分だと「わざと自分のハンターに見られることで相手に
+				// 点数が流出する量を減らす」という裏技が生まれてしまうので、
+				// よりいい感じのスコアを考えるべし
+				gain := 1.0 / float64(len(watchers[runner.Id]))
+				delta += gain
+				a.PointGains = append(a.PointGains, PointGain{
+					GainedFrom: runner,
+					Gain:       gain,
+				})
 			}
-		}
-		if a.Kind == Runner {
+
+		case Runner:
 			// Runner は Hunter に対してスコアを提供する
 			// 一人からでも見られている限り 1.0 を供出することになる
 			if len(watchers[a.Id]) > 0 {
 				delta = -1.0
+
+				// 見られている全員に対してスコアを供出する
+				each := delta / float64(len(watchers[a.Id]))
+				for _, hunter := range watchers[a.Id] {
+					a.PointGains = append(a.PointGains, PointGain{
+						GainedFrom: hunter,
+						Gain:       each,
+					})
+				}
 			}
 		}
+
 		a.Point += delta
 	}
 }

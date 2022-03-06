@@ -42,7 +42,7 @@ func TestApplyActionFor(t *testing.T) {
 		agent := &g.Agents[0]
 
 		// 右上斜め 45 度にこのエージェントを動かしてみる
-		agent.NextAction = &ActionMove{
+		agent.Action = &ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
 		}
 
@@ -67,7 +67,7 @@ func TestApplyActionFor(t *testing.T) {
 		agent := &g.Agents[0]
 
 		// 遠くへ移動しようとしてみる
-		agent.NextAction = &ActionMove{
+		agent.Action = &ActionMove{
 			Dir: geom.NewPolarVector(1e5, 0),
 		}
 
@@ -91,7 +91,8 @@ func TestApplyActionFor(t *testing.T) {
 			Kind:       0,
 			Pos:        geom.NewCoord(0, 0),
 			Point:      0,
-			NextAction: &ActionMove{Dir: geom.NewPolarVector(1, 0)},
+			PointGains: []PointGain{},
+			Action:     &ActionMove{Dir: geom.NewPolarVector(1, 0)},
 		}
 
 		ok, err := agent.applyActionOn(&g)
@@ -117,10 +118,11 @@ func TestApplyActionFor(t *testing.T) {
 					g.Config.Time,
 				)
 			}
-			g.Agents[0].NextAction = &ActionMove{
+			g.StartTurn()
+			g.Agents[0].Action = &ActionMove{
 				Dir: geom.NewPolarVector(0.01, 0),
 			}
-			g.Step()
+			g.CommitTurn()
 			count++
 		}
 
@@ -151,12 +153,13 @@ func TestApplyActionFor(t *testing.T) {
 					g.Config.Time,
 				)
 			}
+			g.StartTurn()
 			too_fast_speed := g.Config.Field.Rect.RB.X * 2 /
 				float64(g.Config.Time)
-			g.Agents[0].NextAction = &ActionMove{
+			g.Agents[0].Action = &ActionMove{
 				Dir: geom.NewPolarVector(too_fast_speed, 0),
 			}
-			g.Step()
+			g.CommitTurn()
 			count++
 		}
 
@@ -176,17 +179,20 @@ func TestApplyActionFor(t *testing.T) {
 	})
 }
 
-func TestStep(t *testing.T) {
+func TestTurn(t *testing.T) {
 	t.Run("OneAgentHasAction", func(t *testing.T) {
 		g := dummyGame()
+
+		g.StartTurn()
+
 		agent := &g.Agents[0]
 
 		// 右上斜め 45 度にこのエージェントを動かしてみる
-		agent.NextAction = &ActionMove{
+		agent.Action = &ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
 		}
 
-		if err := g.Step(); err != nil {
+		if err := g.CommitTurn(); err != nil {
 			t.Fatalf("step failed: %v", err)
 		}
 
@@ -200,19 +206,21 @@ func TestStep(t *testing.T) {
 	t.Run("TwoAgentHaveAction", func(t *testing.T) {
 		g := dummyGame()
 
+		g.StartTurn()
+
 		// 右上斜め 45 度にこのエージェントを動かしてみる
 		ag0 := &g.Agents[0]
-		ag0.NextAction = &ActionMove{
+		ag0.Action = &ActionMove{
 			Dir: geom.NewPolarVector(1, math.Pi/4),
 		}
 
 		// 左上斜め 45 度にこのエージェントを動かしてみる
 		ag1 := &g.Agents[1]
-		ag1.NextAction = &ActionMove{
+		ag1.Action = &ActionMove{
 			Dir: geom.NewPolarVector(1, 3*math.Pi/4),
 		}
 
-		if err := g.Step(); err != nil {
+		if err := g.CommitTurn(); err != nil {
 			t.Fatalf("step failed: %v", err)
 		}
 
@@ -239,12 +247,30 @@ func TestStep(t *testing.T) {
 				if !eq(a.Point, 1.0) {
 					t.Fatalf("expected %v but actual %v", 1.0, a.Point)
 				}
+
+				if len(a.PointGains) != len(g.Config.Squads) {
+					// いまは障害物がないので必ず Runner の数と Hunter が見て
+					// いる Runner の数が一致しているはず。
+					t.Fatalf(
+						"point was gained from %d runners but squads are %d",
+						len(a.PointGains), len(g.Config.Squads),
+					)
+				}
 			}
 
 			if a.Kind == Runner {
 				// Runner の場合、誰かには見られているので結局 -1
 				if !eq(a.Point, -1.0) {
 					t.Fatalf("expected %v but actual %v", 1.0, a.Point)
+				}
+
+				if len(a.PointGains) != len(g.Config.Squads) {
+					// いまは障害物がないので必ず Hunter の数と Runner が見ら
+					// れた Hunter の数が一致しているはず。
+					t.Fatalf(
+						"point was given to %d hunters but squads are %d",
+						len(a.PointGains), len(g.Config.Squads),
+					)
 				}
 			}
 		}

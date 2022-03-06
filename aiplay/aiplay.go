@@ -37,11 +37,13 @@ func (g *AIPlay) StepAll() (snapshots []game.Game, err error) {
 }
 
 func (g *AIPlay) Step() error {
+	g.Game.StartTurn()
+
 	if err := g.decideActions(); err != nil {
 		return fmt.Errorf("failed to decide actions: %w", err)
 	}
 
-	if err := g.Game.Step(); err != nil {
+	if err := g.Game.CommitTurn(); err != nil {
 		return fmt.Errorf("failed to step game: %w", err)
 	}
 
@@ -63,7 +65,7 @@ func (g *AIPlay) decideActions() (errs error) {
 				err,
 			))
 		} else {
-			agent.NextAction = action
+			agent.Action = action
 		}
 	}
 
