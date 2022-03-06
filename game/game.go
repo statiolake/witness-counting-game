@@ -101,8 +101,10 @@ func NewGame(config GameConfig) Game {
 func (g *Game) Clone() Game {
 	squads := make([]Squad, len(g.Squads))
 	copy(squads, g.Squads)
-	agents := make([]Agent, len(g.Agents))
-	copy(agents, g.Agents)
+	agents := make([]Agent, 0, len(g.Agents))
+	for idx := range g.Agents {
+		agents = append(agents, g.Agents[idx].Clone())
+	}
 
 	return Game{
 		Config:        g.Config.Clone(),
