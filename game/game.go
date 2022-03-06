@@ -167,10 +167,10 @@ func (g *Game) Step() error {
 	return nil
 }
 
-func (game *Game) DescribeAgent(agent *Agent) string {
+func (g *Game) DescribeAgent(agent *Agent) string {
 	return fmt.Sprintf(
 		"%s/%s",
-		game.Squads[agent.SquadId].Name,
+		g.Squads[agent.SquadId].Name,
 		agent.Name,
 	)
 }

@@ -13,7 +13,14 @@ type SquadConfig struct {
 	AIs    []AI
 }
 
-func (c *AIPlayConfig) AddSquad(squad SquadConfig) {
+func DefaultAIPlayConfig() AIPlayConfig {
+	return AIPlayConfig{
+		GameConfig: game.DefaultGameConfig(),
+		AIs:        []AI{},
+	}
+}
+
+func (c *AIPlayConfig) AddSquad(squad SquadConfig) *AIPlayConfig {
 	squadConfig := game.SquadConfig{
 		Name:   squad.Name,
 		Agents: []game.AgentConfig{},
@@ -28,9 +35,20 @@ func (c *AIPlayConfig) AddSquad(squad SquadConfig) {
 	}
 
 	c.GameConfig.Squads = append(c.GameConfig.Squads, squadConfig)
+
+	return c
 }
 
-func (c *SquadConfig) AddAgent(agent game.AgentConfig, ai AI) {
+func NewSquadConfig(name string) SquadConfig {
+	return SquadConfig{
+		Name:   name,
+		Agents: []game.AgentConfig{},
+		AIs:    []AI{},
+	}
+}
+
+func (c *SquadConfig) AddAgent(agent game.AgentConfig, ai AI) *SquadConfig {
 	c.Agents = append(c.Agents, agent)
 	c.AIs = append(c.AIs, ai)
+	return c
 }

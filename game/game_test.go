@@ -255,41 +255,17 @@ func eq(a, b float64) bool {
 	return math.Abs(a-b) < 1e-8
 }
 
-func createConfig() GameConfig {
+func dummyGame() Game {
 	numSquads := 5
-
-	squads := []SquadConfig{}
-	for i := 1; i <= numSquads; i++ {
+	config := DefaultGameConfig()
+	for i := 1; i < numSquads; i++ {
 		name := fmt.Sprintf("squad-%02d", i)
 		agentBase := fmt.Sprintf("agent-%02d", i)
-		squads = append(squads, SquadConfig{
-			Name: name,
-			Agents: []AgentConfig{
-				{
-					Name:    agentBase + "h",
-					Kind:    Hunter,
-					InitPos: geom.NewCoord(0, 0),
-				},
-				{
-					Name:    agentBase + "r",
-					Kind:    Runner,
-					InitPos: geom.NewCoord(0, 0),
-				},
-			},
-		})
+		squad := NewSquadConfig(name)
+		squad.
+			AddAgent(NewAgentConfig(agentBase+"h", Hunter)).
+			AddAgent(NewAgentConfig(agentBase+"r", Runner))
+		config.AddSquad(squad)
 	}
-
-	return GameConfig{
-		Field: FieldConfig{
-			Rect:  geom.NewRectFromPoints(-50.0, -50.0, 50.0, 50.0),
-			Obsts: []ObstructionConfig{},
-		},
-		Squads: squads,
-		Speed:  0,
-		Time:   100,
-	}
-}
-
-func dummyGame() Game {
-	return NewGame(createConfig())
+	return NewGame(config)
 }
