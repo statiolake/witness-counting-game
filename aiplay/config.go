@@ -26,13 +26,8 @@ func (c *AIPlayConfig) AddSquad(squad SquadConfig) *AIPlayConfig {
 		Agents: []game.AgentConfig{},
 	}
 
-	for _, agent := range squad.Agents {
-		squadConfig.Agents = append(squadConfig.Agents, agent)
-	}
-
-	for _, ai := range squad.AIs {
-		c.AIs = append(c.AIs, ai)
-	}
+	squadConfig.Agents = append(squadConfig.Agents, squad.Agents...)
+	c.AIs = append(c.AIs, squad.AIs...)
 
 	c.GameConfig.Squads = append(c.GameConfig.Squads, squadConfig)
 

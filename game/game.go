@@ -153,7 +153,7 @@ func (g *Game) IsFinished() bool {
 
 func (g *Game) Step() error {
 	if g.IsFinished() {
-		return fmt.Errorf("Attempted to step an finished game")
+		return fmt.Errorf("attempted to step an finished game")
 	}
 
 	// エラーは無視する (ゲーム中は基本的にエラーがあっても継続してほしい;
@@ -282,16 +282,17 @@ func (g *Game) moveScore() {
 	watchers := make([][]*Agent, len(g.Agents))
 	for idx := range g.Agents {
 		a := &g.Agents[idx]
-		if a.Kind == Hunter {
+		switch a.Kind {
+		case Hunter:
 			watchers[a.Id] = a.FindCapturedRunners(g)
-		} else if a.Kind == Runner {
+		case Runner:
 			watchers[a.Id] = a.FindWatchingHunters(g)
 		}
 	}
 
 	for idx := range g.Agents {
 		a := &g.Agents[idx]
-		var delta float64 = 0.0
+		delta := 0.0
 		if a.Kind == Hunter {
 			// Hunter の報酬は各 Runner が提供してくれるスコアの和
 			// 各 Runner はスコア 1.0 を見られているハンターへ等分する
