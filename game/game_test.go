@@ -427,6 +427,77 @@ func TestTurn(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("Knowledge", func(t *testing.T) {
+		// 次のような位置関係のゲームを作る。
+		//
+		//      +h |
+		//      *h | *r
+		//      +r |
+		//
+		// *: squad-01
+		// +: squad-02
+		//
+		// このとき +h, *h, +r はお互いが分かるが、*r は誰のことも見えていない。
+		g := DefaultGameConfig().
+			WithSquadAdded(
+				NewSquadConfig("squad-01").
+					WithAgentAdded(
+						NewAgentConfig("agent-01h", Hunter).
+							WithInitPos(geom.NewCoord(-1, 0)),
+					).
+					WithAgentAdded(
+						NewAgentConfig("agent-01r", Runner).
+							WithInitPos(geom.NewCoord(1, 0)),
+					),
+			).
+			WithSquadAdded(
+				NewSquadConfig("squad-02").
+					WithAgentAdded(
+						NewAgentConfig("agent-02h", Hunter).
+							WithInitPos(geom.NewCoord(-1, 1)),
+					).
+					WithAgentAdded(
+						NewAgentConfig("agent-02r", Runner).
+							WithInitPos(geom.NewCoord(-1, -1)),
+					),
+			).
+			// 中央の遮蔽物を追加する
+			WithFieldConfig(
+				DefaultFieldConfig().
+					WithObstructionAdded(
+						ObstructionConfig{
+							Segment: geom.NewSegment(
+								geom.NewCoord(0, 2),
+								geom.NewCoord(0, -2),
+							),
+						},
+					),
+			).
+			BuildGame()
+
+		{
+			hunter1 := &g.Agents[0]
+			knowledge := g.GetKnowledgeFor(hunter1)
+			if len(knowledge.Watchers) != 3 {
+				t.Fatalf(
+					"invalid number of watchers: knows %v but should know %d",
+					knowledge.Watchers, 3,
+				)
+			}
+		}
+
+		{
+			runner1 := &g.Agents[1]
+			knowledge := g.GetKnowledgeFor(runner1)
+			if len(knowledge.Watchers) != 1 {
+				t.Fatalf(
+					"invalid number of watchers: knows %v but should know %d",
+					knowledge.Watchers, 1,
+				)
+			}
+		}
+	})
 }
 
 func eq(a, b float64) bool {

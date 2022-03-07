@@ -24,6 +24,16 @@ type Game struct {
 
 // TODO: 渡す情報は考えるべし
 type Knowledge struct {
+	// フィールド情報
+	Field Field
+	// Squad の数
+	NumSquads int
+	// Agent の数
+	NumAgents int
+	// 自分
+	Me Agent
+	// 自分を見ている、あるいは自分から見える Agent (自分を含む)
+	Watchers []Agent
 }
 
 type Field struct {
@@ -169,7 +179,22 @@ func (a *Agent) Clone() Agent {
 }
 
 func (g *Game) GetKnowledgeFor(agent *Agent) Knowledge {
-	return Knowledge{}
+	field := g.Field.Clone()
+	numSquads := len(g.Squads)
+	numAgents := len(g.Agents)
+	me := agent.Clone()
+	var watchers []Agent
+	for _, agent := range agent.FindWatchingAgents(g, nil, true) {
+		watchers = append(watchers, agent.Clone())
+	}
+
+	return Knowledge{
+		Field:     field,
+		NumSquads: numSquads,
+		NumAgents: numAgents,
+		Me:        me,
+		Watchers:  watchers,
+	}
 }
 
 func (g *Game) IsFinished() bool {
@@ -200,52 +225,45 @@ func (g *Game) DescribeAgent(agent *Agent) string {
 	)
 }
 
-// 同じ Squad のメンバーを含めたい場合は includeSquad を true とせよ
-func (runner *Agent) FindWatchingHunters(g *Game, includeSquad bool) (res []*Agent) {
-	if runner.Kind != Runner {
-		panic("Find watching hunters called on Runner")
-	}
-
+func (agent *Agent) FindWatchingAgents(g *Game, targetKind *Kind, includeSquad bool) (res []*Agent) {
 	for idx := range g.Agents {
-		hunter := &g.Agents[idx]
-		if hunter.Kind != Hunter {
+		other := &g.Agents[idx]
+		// ターゲットの種類が指定されている場合は一致していなければ終了
+		if targetKind != nil && other.Kind != *targetKind {
 			continue
 		}
 
-		if !includeSquad && hunter.SquadId == runner.SquadId {
+		// 自分の Squad を含まない場合は SquadId が同じものはスキップ
+		if !includeSquad && other.SquadId == agent.SquadId {
 			continue
 		}
 
-		if hunter.IsWatching(runner, g) {
-			res = append(res, hunter)
+		if other.IsWatching(agent, g) {
+			res = append(res, other)
 		}
 	}
 
 	return
 }
 
-// 同じ Squad のメンバーを含めたい場合は includeSquad を true とせよ
-func (hunter *Agent) FindWatchingRunners(g *Game, includeSquad bool) (res []*Agent) {
+// 同じ Squad のメンバーを含めたい場合は includeSquad を true とする
+func (runner *Agent) FindWatchingHunters(g *Game, includeSquad bool) []*Agent {
+	if runner.Kind != Runner {
+		panic("Find watching hunters called on Runner")
+	}
+
+	hunter := Hunter
+	return runner.FindWatchingAgents(g, &hunter, includeSquad)
+}
+
+// 同じ Squad のメンバーを含めたい場合は includeSquad を true とする
+func (hunter *Agent) FindWatchingRunners(g *Game, includeSquad bool) []*Agent {
 	if hunter.Kind != Hunter {
 		panic("Find watching runners called on Hunter")
 	}
 
-	for idx := range g.Agents {
-		runner := &g.Agents[idx]
-		if runner.Kind != Runner {
-			continue
-		}
-
-		if !includeSquad && hunter.SquadId == runner.SquadId {
-			continue
-		}
-
-		if hunter.IsWatching(runner, g) {
-			res = append(res, runner)
-		}
-	}
-
-	return
+	runner := Runner
+	return hunter.FindWatchingAgents(g, &runner, includeSquad)
 }
 
 func (from *Agent) IsWatching(to *Agent, g *Game) bool {
