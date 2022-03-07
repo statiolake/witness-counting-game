@@ -32,7 +32,7 @@ type Field struct {
 }
 
 type Obstruction struct {
-	Line geom.Line
+	Segment geom.Segment
 }
 
 type Squad struct {
@@ -243,7 +243,19 @@ func (hunter *Agent) FindWatchingRunners(g *Game, includeSquad bool) (res []*Age
 }
 
 func (from *Agent) IsWatching(to *Agent, g *Game) bool {
-	// TODO: from と to の間に遮蔽物があるかどうかをチェックする
+	for _, obst := range g.Field.Obsts {
+		ftseg := geom.Segment{
+			A: from.Pos,
+			B: to.Pos,
+		}
+
+		// from-to を結ぶ線分と遮蔽物がぶつかるのであればこの二者はお互いに見
+		// えていない。
+		if obst.Segment.Crosses(ftseg) {
+			return false
+		}
+	}
+
 	return true
 }
 

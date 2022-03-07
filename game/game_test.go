@@ -335,6 +335,99 @@ func TestTurn(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("Obstruction", func(t *testing.T) {
+		// 次のような位置関係のゲームを作る。
+		//
+		//      +h |
+		//      *h | *r
+		//      +r |
+		//
+		// *: squad-01
+		// +: squad-02
+		//
+		// このとき squad-01 は壁の向こう側にいるので得点を失わず、
+		// squad-02 が一方的に得点を吸われる状況になっていてほしい
+		config := DefaultGameConfig()
+		{
+			squad := NewSquadConfig("squad-01")
+
+			hunter := NewAgentConfig("agent-01h", Hunter)
+			hunter.WithInitPos(geom.NewCoord(-1, 0))
+			runner := NewAgentConfig("agent-01r", Runner)
+			runner.WithInitPos(geom.NewCoord(1, 0))
+
+			squad.AddAgent(hunter).AddAgent(runner)
+			config.AddSquad(squad)
+		}
+		{
+			squad := NewSquadConfig("squad-02")
+
+			hunter := NewAgentConfig("agent-02h", Hunter)
+			hunter.WithInitPos(geom.NewCoord(-1, 1))
+			runner := NewAgentConfig("agent-02r", Runner)
+			runner.WithInitPos(geom.NewCoord(-1, -1))
+
+			squad.AddAgent(hunter).AddAgent(runner)
+			config.AddSquad(squad)
+		}
+
+		// 中央の遮蔽物を追加する
+		{
+			field := DefaultFieldConfig()
+			field.AddObstruction(ObstructionConfig{
+				Segment: geom.NewSegment(
+					geom.NewCoord(0, 2),
+					geom.NewCoord(0, -2),
+				),
+			})
+			config.WithFieldConfig(&field)
+		}
+
+		g := NewGame(config)
+
+		// ターンを実行する
+		g.StartTurn()
+		if err := g.CommitTurn(); err != nil {
+			t.Fatalf("commit turn failed: %v", err)
+		}
+
+		// 得点の変動を確認する
+		hunter1 := &g.Agents[0]
+		runner1 := &g.Agents[1]
+		hunter2 := &g.Agents[2]
+		runner2 := &g.Agents[3]
+
+		asserts := []struct {
+			name          string
+			agent         *Agent
+			numPointGains int
+			point         float64
+		}{
+			{"hunter1", hunter1, 1, 1.0},
+			{"hunter2", hunter2, 0, 0.0},
+			{"runner1", runner1, 0, 0.0},
+			{"runner2", runner2, 1, -1.0},
+		}
+
+		for _, assert := range asserts {
+			if len(assert.agent.PointGains) != assert.numPointGains {
+				t.Fatalf(
+					"unexpected point gain for %s (%s): %v",
+					assert.name, g.DescribeAgent(assert.agent),
+					assert.agent.PointGains,
+				)
+			}
+
+			if !eq(assert.agent.Point, assert.point) {
+				t.Fatalf(
+					"unexpected point for %s (%s): %v",
+					assert.name, g.DescribeAgent(assert.agent),
+					assert.agent.Point,
+				)
+			}
+		}
+	})
 }
 
 func eq(a, b float64) bool {
