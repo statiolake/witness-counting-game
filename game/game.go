@@ -58,8 +58,14 @@ type Agent struct {
 // Runner が Hunter にポイントを提供するときは負の Gain として扱う。
 // 「Runner は Hunter から -1.0 ポイントを獲得した」
 type PointGain struct {
-	GainedFrom *Agent
-	Gain       float64
+	// 本来なら *Agent などとして扱いたいところではあるが、再帰的な構造になる
+	// と JSON と相性が悪いので諦める。
+	//
+	// Marshal をカスタムして JSON 出力時だけ整数値に置き換えることはできるか
+	// もしれないが、その場合でも Unmarshal を実装するのは無理そう。PointGain
+	// を Unmarshal するときに []Agent が必要ということになるため。
+	AgentIdGainedFrom int
+	Gain              float64
 }
 
 type ActionMove struct {
@@ -371,8 +377,8 @@ func (g *Game) moveScore() {
 				gain := 1.0 / float64(len(watchers[runner.Id]))
 				delta += gain
 				a.PointGains = append(a.PointGains, PointGain{
-					GainedFrom: runner,
-					Gain:       gain,
+					AgentIdGainedFrom: runner.Id,
+					Gain:              gain,
 				})
 			}
 
@@ -386,8 +392,8 @@ func (g *Game) moveScore() {
 				each := delta / float64(len(watchers[a.Id]))
 				for _, hunter := range watchers[a.Id] {
 					a.PointGains = append(a.PointGains, PointGain{
-						GainedFrom: hunter,
-						Gain:       each,
+						AgentIdGainedFrom: hunter.Id,
+						Gain:              each,
 					})
 				}
 			}
