@@ -57,7 +57,7 @@ func createAIPlay() aiplay.AIPlay {
 		)
 
 		squad.AddAgent(
-			game.NewAgentConfig(agentBase+"r", game.Hunter),
+			game.NewAgentConfig(agentBase+"r", game.Runner),
 			&constAI{Dir: geom.NewPolarVector(1, 0)},
 		)
 

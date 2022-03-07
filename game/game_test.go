@@ -34,6 +34,24 @@ func TestStateSetup(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("ConfigGameAgentKindAgreement", func(t *testing.T) {
+		g := dummyGame()
+
+		for idx := range g.Agents {
+			agent := &g.Agents[idx]
+			agentConfig := &g.Config.
+				Squads[agent.SquadId].
+				Agents[agent.InSquadId]
+
+			if agent.Kind != agentConfig.Kind {
+				t.Fatalf(
+					"agent kind is not set: %v but config %v",
+					agent.Kind, agentConfig.Kind,
+				)
+			}
+		}
+	})
 }
 
 func TestApplyActionFor(t *testing.T) {
@@ -86,6 +104,7 @@ func TestApplyActionFor(t *testing.T) {
 		g := dummyGame()
 		agent := Agent{
 			Id:         0,
+			InSquadId:  0,
 			SquadId:    0,
 			Name:       "",
 			Kind:       0,

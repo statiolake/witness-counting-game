@@ -41,12 +41,16 @@ type Squad struct {
 }
 
 type Agent struct {
-	Id         int
-	SquadId    int
-	Name       string
-	Kind       Kind
-	Pos        geom.Coord
-	Point      float64
+	Id        int // 全体で一意なエージェント番号
+	InSquadId int // squad の中でのエージェント番号
+	SquadId   int
+	Name      string
+	Kind      Kind
+	Pos       geom.Coord
+	Point     float64
+
+	// ターンごとにリセットされる情報
+
 	PointGains []PointGain
 	Action     *ActionMove
 }
@@ -82,11 +86,12 @@ func NewGame(config GameConfig) Game {
 			Id:   squadId,
 			Name: squad.Name,
 		})
-		for _, agent := range squad.Agents {
+		for inSquadId, agent := range squad.Agents {
 			// ID は squad ごとではなく完全にリストとして扱うので注意すべし
 			id := len(agents)
 			agents = append(agents, Agent{
 				Id:         id,
+				InSquadId:  inSquadId,
 				SquadId:    squadId,
 				Name:       agent.Name,
 				Kind:       agent.Kind,
@@ -146,6 +151,7 @@ func (a *Agent) Clone() Agent {
 
 	return Agent{
 		Id:         a.Id,
+		InSquadId:  a.InSquadId,
 		SquadId:    a.SquadId,
 		Name:       a.Name,
 		Kind:       a.Kind,
@@ -188,24 +194,30 @@ func (g *Game) DescribeAgent(agent *Agent) string {
 	)
 }
 
-func (agent *Agent) FindWatchingHunters(g *Game) []*Agent {
-	res := []*Agent{}
+func (runner *Agent) FindWatchingHunters(g *Game) (res []*Agent) {
+	if runner.Kind != Runner {
+		panic("Find watching hunters called on Runner")
+	}
+
 	for idx := range g.Agents {
 		hunter := &g.Agents[idx]
 		if hunter.Kind != Hunter {
 			continue
 		}
 
-		if hunter.IsWatching(agent, g) {
+		if hunter.IsWatching(runner, g) {
 			res = append(res, hunter)
 		}
 	}
 
-	return res
+	return
 }
 
-func (hunter *Agent) FindCapturedRunners(g *Game) []*Agent {
-	res := []*Agent{}
+func (hunter *Agent) FindWatchingRunners(g *Game) (res []*Agent) {
+	if hunter.Kind != Hunter {
+		panic("Find watching runners called on Hunter")
+	}
+
 	for idx := range g.Agents {
 		agent := &g.Agents[idx]
 		if agent.Kind != Runner {
@@ -217,7 +229,7 @@ func (hunter *Agent) FindCapturedRunners(g *Game) []*Agent {
 		}
 	}
 
-	return res
+	return
 }
 
 func (from *Agent) IsWatching(to *Agent, g *Game) bool {
@@ -311,7 +323,7 @@ func (g *Game) moveScore() {
 		a := &g.Agents[idx]
 		switch a.Kind {
 		case Hunter:
-			watchers[a.Id] = a.FindCapturedRunners(g)
+			watchers[a.Id] = a.FindWatchingRunners(g)
 		case Runner:
 			watchers[a.Id] = a.FindWatchingHunters(g)
 		}

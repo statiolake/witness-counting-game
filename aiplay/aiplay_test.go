@@ -58,7 +58,9 @@ func TestStepAll(t *testing.T) {
 			)
 		}
 
-		if !snapshots[len(snapshots)-1].IsFinished() {
+		final := &snapshots[len(snapshots)-1]
+
+		if !final.IsFinished() {
 			t.Fatalf("last snapshot is not finished game")
 		}
 
@@ -68,6 +70,28 @@ func TestStepAll(t *testing.T) {
 		actual := g.Game.Agents[0].Pos
 		if !eq(actual.X, expected.X) || !eq(actual.Y, expected.Y) {
 			t.Fatalf("expected %v but actual %v", expected, actual)
+		}
+
+		// スコアを確認
+		for idx := range g.Game.Agents {
+			agent := &g.Game.Agents[idx]
+			finalAgent := &final.Agents[idx]
+
+			if eq(agent.Point, 0.0) {
+				t.Fatalf(
+					"no point move on agent %s",
+					g.Game.DescribeAgent(agent),
+				)
+			}
+
+			if !eq(agent.Point, finalAgent.Point) {
+				t.Fatalf(
+					"last game and final snapshot does not agree on Point"+
+						" of agent %s: %f vs %f",
+					g.Game.DescribeAgent(agent),
+					agent.Point, finalAgent.Point,
+				)
+			}
 		}
 	})
 }
@@ -91,7 +115,7 @@ func createAIPlay() AIPlay {
 		)
 
 		squad.AddAgent(
-			game.NewAgentConfig(agentBase+"r", game.Hunter),
+			game.NewAgentConfig(agentBase+"r", game.Runner),
 			&constAI{Dir: geom.NewPolarVector(1, 0)},
 		)
 
