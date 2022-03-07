@@ -194,7 +194,8 @@ func (g *Game) DescribeAgent(agent *Agent) string {
 	)
 }
 
-func (runner *Agent) FindWatchingHunters(g *Game) (res []*Agent) {
+// 同じ Squad のメンバーを含めたい場合は includeSquad を true とせよ
+func (runner *Agent) FindWatchingHunters(g *Game, includeSquad bool) (res []*Agent) {
 	if runner.Kind != Runner {
 		panic("Find watching hunters called on Runner")
 	}
@@ -202,6 +203,10 @@ func (runner *Agent) FindWatchingHunters(g *Game) (res []*Agent) {
 	for idx := range g.Agents {
 		hunter := &g.Agents[idx]
 		if hunter.Kind != Hunter {
+			continue
+		}
+
+		if !includeSquad && hunter.SquadId == runner.SquadId {
 			continue
 		}
 
@@ -213,19 +218,24 @@ func (runner *Agent) FindWatchingHunters(g *Game) (res []*Agent) {
 	return
 }
 
-func (hunter *Agent) FindWatchingRunners(g *Game) (res []*Agent) {
+// 同じ Squad のメンバーを含めたい場合は includeSquad を true とせよ
+func (hunter *Agent) FindWatchingRunners(g *Game, includeSquad bool) (res []*Agent) {
 	if hunter.Kind != Hunter {
 		panic("Find watching runners called on Hunter")
 	}
 
 	for idx := range g.Agents {
-		agent := &g.Agents[idx]
-		if agent.Kind != Runner {
+		runner := &g.Agents[idx]
+		if runner.Kind != Runner {
 			continue
 		}
 
-		if hunter.IsWatching(agent, g) {
-			res = append(res, agent)
+		if !includeSquad && hunter.SquadId == runner.SquadId {
+			continue
+		}
+
+		if hunter.IsWatching(runner, g) {
+			res = append(res, runner)
 		}
 	}
 
@@ -328,9 +338,9 @@ func (g *Game) moveScore() {
 		a := &g.Agents[idx]
 		switch a.Kind {
 		case Hunter:
-			watchers[a.Id] = a.FindWatchingRunners(g)
+			watchers[a.Id] = a.FindWatchingRunners(g, false)
 		case Runner:
-			watchers[a.Id] = a.FindWatchingHunters(g)
+			watchers[a.Id] = a.FindWatchingHunters(g, false)
 		}
 	}
 
@@ -345,9 +355,7 @@ func (g *Game) moveScore() {
 			for _, runner := range watchers[a.Id] {
 				// この Hunter が見ている Runner から点数をもらう。もらえる点
 				// 数は Runner が何人の Hunter から見られているかに依存する。
-				// TODO: 等分だと「わざと自分のハンターに見られることで相手に
-				// 点数が流出する量を減らす」という裏技が生まれてしまうので、
-				// よりいい感じのスコアを考えるべし
+				// TODO: ここ単に等分で OK ？
 				gain := 1.0 / float64(len(watchers[runner.Id]))
 				delta += gain
 				a.PointGains = append(a.PointGains, PointGain{

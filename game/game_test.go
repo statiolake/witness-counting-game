@@ -299,15 +299,18 @@ func TestTurn(t *testing.T) {
 		// 現状は障害物がないのでそのまま人数が出てくるはず。
 		for _, a := range g.Agents {
 			if a.Kind == Hunter {
-				// Hunter の場合、 cfg.squads の数だけ Runner がいるから、そ
-				// れぞれから 1/cfg.squads だけもらっていて、結局 +1
+				// Hunter の場合、cfg.squads - 1 の数だけ Runner がいるから、
+				// それぞれから 1/(cfg.squads - 1) だけもらっていて、結局 +1
+				// squads - 1 なのはフレンドリーファイアがないため。
 				if !eq(a.Point, 1.0) {
 					t.Fatalf("expected %v but actual %v", 1.0, a.Point)
 				}
 
-				if len(a.PointGains) != len(g.Config.Squads) {
+				if len(a.PointGains) != len(g.Config.Squads)-1 {
 					// いまは障害物がないので必ず Runner の数と Hunter が見て
 					// いる Runner の数が一致しているはず。
+					// ただしフレンドリーファイアはないので squads の数からは
+					// 1 減る。
 					t.Fatalf(
 						"point was gained from %d runners but squads are %d",
 						len(a.PointGains), len(g.Config.Squads),
@@ -321,7 +324,7 @@ func TestTurn(t *testing.T) {
 					t.Fatalf("expected %v but actual %v", 1.0, a.Point)
 				}
 
-				if len(a.PointGains) != len(g.Config.Squads) {
+				if len(a.PointGains) != len(g.Config.Squads)-1 {
 					// いまは障害物がないので必ず Hunter の数と Runner が見ら
 					// れた Hunter の数が一致しているはず。
 					t.Fatalf(
