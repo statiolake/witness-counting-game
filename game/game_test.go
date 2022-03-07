@@ -122,7 +122,11 @@ func TestApplyActionFor(t *testing.T) {
 			g.Agents[0].Action = &ActionMove{
 				Dir: geom.NewPolarVector(0.01, 0),
 			}
-			g.CommitTurn()
+
+			if err := g.CommitTurn(); err != nil {
+				t.Fatalf("commit turn failed: %v", err)
+			}
+
 			count++
 		}
 
@@ -159,7 +163,11 @@ func TestApplyActionFor(t *testing.T) {
 			g.Agents[0].Action = &ActionMove{
 				Dir: geom.NewPolarVector(too_fast_speed, 0),
 			}
-			g.CommitTurn()
+
+			if err := g.CommitTurn(); err != nil {
+				t.Fatalf("commit turn failed: %v", err)
+			}
+
 			count++
 		}
 
@@ -193,7 +201,7 @@ func TestTurn(t *testing.T) {
 		}
 
 		if err := g.CommitTurn(); err != nil {
-			t.Fatalf("step failed: %v", err)
+			t.Fatalf("commit turn failed: %v", err)
 		}
 
 		expected := geom.NewCoord(1/math.Sqrt(2), 1/math.Sqrt(2))
@@ -221,7 +229,7 @@ func TestTurn(t *testing.T) {
 		}
 
 		if err := g.CommitTurn(); err != nil {
-			t.Fatalf("step failed: %v", err)
+			t.Fatalf("commit turn failed: %v", err)
 		}
 
 		// ag0 の位置を確認
