@@ -17,8 +17,8 @@ type AIPlay struct {
 	AIs  []AI
 }
 
-func NewAIPlay(config AIPlayConfig) AIPlay {
-	game := game.NewGame(config.GameConfig)
+func (config *AIPlayConfig) BuildAIPlay() AIPlay {
+	game := config.GameConfig.BuildGame()
 	return AIPlay{
 		Game: game,
 		AIs:  config.AIs,

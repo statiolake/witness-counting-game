@@ -13,37 +13,35 @@ type SquadConfig struct {
 	AIs    []AI
 }
 
-func DefaultAIPlayConfig() AIPlayConfig {
-	return AIPlayConfig{
-		GameConfig: game.DefaultGameConfig(),
+func DefaultAIPlayConfig() *AIPlayConfig {
+	return &AIPlayConfig{
+		GameConfig: *game.DefaultGameConfig(),
 		AIs:        []AI{},
 	}
 }
 
-func (c *AIPlayConfig) AddSquad(squad SquadConfig) *AIPlayConfig {
-	squadConfig := game.SquadConfig{
-		Name:   squad.Name,
-		Agents: []game.AgentConfig{},
-	}
-
-	squadConfig.Agents = append(squadConfig.Agents, squad.Agents...)
+func (c *AIPlayConfig) WithSquadAdded(squad *SquadConfig) *AIPlayConfig {
 	c.AIs = append(c.AIs, squad.AIs...)
 
-	c.GameConfig.Squads = append(c.GameConfig.Squads, squadConfig)
+	squadConfig := game.NewSquadConfig(squad.Name)
+	for idx := range squad.Agents {
+		squadConfig.WithAgentAdded(&squad.Agents[idx])
+	}
+	c.GameConfig.WithSquadAdded(squadConfig)
 
 	return c
 }
 
-func NewSquadConfig(name string) SquadConfig {
-	return SquadConfig{
+func NewSquadConfig(name string) *SquadConfig {
+	return &SquadConfig{
 		Name:   name,
 		Agents: []game.AgentConfig{},
 		AIs:    []AI{},
 	}
 }
 
-func (c *SquadConfig) AddAgent(agent game.AgentConfig, ai AI) *SquadConfig {
-	c.Agents = append(c.Agents, agent)
+func (c *SquadConfig) WithAgentAdded(agent *game.AgentConfig, ai AI) *SquadConfig {
+	c.Agents = append(c.Agents, agent.Clone())
 	c.AIs = append(c.AIs, ai)
 	return c
 }

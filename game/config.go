@@ -29,9 +29,9 @@ type AgentConfig struct {
 	InitPos geom.Coord
 }
 
-func DefaultGameConfig() GameConfig {
-	return GameConfig{
-		Field:  DefaultFieldConfig(),
+func DefaultGameConfig() *GameConfig {
+	return &GameConfig{
+		Field:  *DefaultFieldConfig(),
 		Squads: []SquadConfig{},
 		Speed:  1.0,
 		Time:   100,
@@ -39,12 +39,12 @@ func DefaultGameConfig() GameConfig {
 }
 
 func (c *GameConfig) WithFieldConfig(field *FieldConfig) *GameConfig {
-	c.Field = *field
+	c.Field = field.Clone()
 	return c
 }
 
-func (c *GameConfig) AddSquad(squad SquadConfig) *GameConfig {
-	c.Squads = append(c.Squads, squad)
+func (c *GameConfig) WithSquadAdded(squad *SquadConfig) *GameConfig {
+	c.Squads = append(c.Squads, squad.Clone())
 	return c
 }
 
@@ -58,8 +58,8 @@ func (c *GameConfig) WithTime(time int) *GameConfig {
 	return c
 }
 
-func DefaultFieldConfig() FieldConfig {
-	return FieldConfig{
+func DefaultFieldConfig() *FieldConfig {
+	return &FieldConfig{
 		Rect:  geom.NewRectFromPoints(-50.0, -50.0, 50.0, 50.0),
 		Obsts: []ObstructionConfig{},
 	}
@@ -70,25 +70,25 @@ func (c *FieldConfig) WithRect(rect geom.Rect) *FieldConfig {
 	return c
 }
 
-func (c *FieldConfig) AddObstruction(obst ObstructionConfig) *FieldConfig {
+func (c *FieldConfig) WithObstructionAdded(obst ObstructionConfig) *FieldConfig {
 	c.Obsts = append(c.Obsts, obst)
 	return c
 }
 
-func NewSquadConfig(name string) SquadConfig {
-	return SquadConfig{
+func NewSquadConfig(name string) *SquadConfig {
+	return &SquadConfig{
 		Name:   name,
 		Agents: []AgentConfig{},
 	}
 }
 
-func (c *SquadConfig) AddAgent(agent AgentConfig) *SquadConfig {
-	c.Agents = append(c.Agents, agent)
+func (c *SquadConfig) WithAgentAdded(agent *AgentConfig) *SquadConfig {
+	c.Agents = append(c.Agents, agent.Clone())
 	return c
 }
 
-func NewAgentConfig(name string, kind Kind) AgentConfig {
-	return AgentConfig{
+func NewAgentConfig(name string, kind Kind) *AgentConfig {
+	return &AgentConfig{
 		Name:    name,
 		Kind:    kind,
 		InitPos: geom.NewCoord(0, 0),
@@ -101,12 +101,16 @@ func (c *AgentConfig) WithInitPos(pos geom.Coord) *AgentConfig {
 }
 
 func (c *GameConfig) Clone() GameConfig {
-	squads := make([]SquadConfig, len(c.Squads))
-	copy(squads, c.Squads)
+	var squads []SquadConfig
+	for idx := range c.Squads {
+		squads = append(squads, c.Squads[idx].Clone())
+	}
+
 	return GameConfig{
 		Field:  c.Field.Clone(),
 		Squads: squads,
 		Speed:  c.Speed,
+		Time:   c.Time,
 	}
 }
 
@@ -117,4 +121,17 @@ func (c *FieldConfig) Clone() FieldConfig {
 		Rect:  c.Rect,
 		Obsts: obsts,
 	}
+}
+
+func (c *SquadConfig) Clone() SquadConfig {
+	agents := make([]AgentConfig, len(c.Agents))
+	copy(agents, c.Agents)
+	return SquadConfig{
+		Name:   c.Name,
+		Agents: agents,
+	}
+}
+
+func (c *AgentConfig) Clone() AgentConfig {
+	return *c
 }

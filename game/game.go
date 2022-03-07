@@ -66,7 +66,7 @@ type ActionMove struct {
 	Dir geom.PolarVector
 }
 
-func NewGame(config GameConfig) Game {
+func (config *GameConfig) BuildGame() Game {
 	obsts := []Obstruction{}
 
 	for _, obst := range config.Field.Obsts {
@@ -104,7 +104,7 @@ func NewGame(config GameConfig) Game {
 	}
 
 	return Game{
-		Config:        config,
+		Config:        config.Clone(),
 		Field:         field,
 		Squads:        squads,
 		Agents:        agents,

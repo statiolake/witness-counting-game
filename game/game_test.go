@@ -348,43 +348,42 @@ func TestTurn(t *testing.T) {
 		//
 		// このとき squad-01 は壁の向こう側にいるので得点を失わず、
 		// squad-02 が一方的に得点を吸われる状況になっていてほしい
-		config := DefaultGameConfig()
-		{
-			squad := NewSquadConfig("squad-01")
-
-			hunter := NewAgentConfig("agent-01h", Hunter)
-			hunter.WithInitPos(geom.NewCoord(-1, 0))
-			runner := NewAgentConfig("agent-01r", Runner)
-			runner.WithInitPos(geom.NewCoord(1, 0))
-
-			squad.AddAgent(hunter).AddAgent(runner)
-			config.AddSquad(squad)
-		}
-		{
-			squad := NewSquadConfig("squad-02")
-
-			hunter := NewAgentConfig("agent-02h", Hunter)
-			hunter.WithInitPos(geom.NewCoord(-1, 1))
-			runner := NewAgentConfig("agent-02r", Runner)
-			runner.WithInitPos(geom.NewCoord(-1, -1))
-
-			squad.AddAgent(hunter).AddAgent(runner)
-			config.AddSquad(squad)
-		}
-
-		// 中央の遮蔽物を追加する
-		{
-			field := DefaultFieldConfig()
-			field.AddObstruction(ObstructionConfig{
-				Segment: geom.NewSegment(
-					geom.NewCoord(0, 2),
-					geom.NewCoord(0, -2),
-				),
-			})
-			config.WithFieldConfig(&field)
-		}
-
-		g := NewGame(config)
+		g := DefaultGameConfig().
+			WithSquadAdded(
+				NewSquadConfig("squad-01").
+					WithAgentAdded(
+						NewAgentConfig("agent-01h", Hunter).
+							WithInitPos(geom.NewCoord(-1, 0)),
+					).
+					WithAgentAdded(
+						NewAgentConfig("agent-01r", Runner).
+							WithInitPos(geom.NewCoord(1, 0)),
+					),
+			).
+			WithSquadAdded(
+				NewSquadConfig("squad-02").
+					WithAgentAdded(
+						NewAgentConfig("agent-02h", Hunter).
+							WithInitPos(geom.NewCoord(-1, 1)),
+					).
+					WithAgentAdded(
+						NewAgentConfig("agent-02r", Runner).
+							WithInitPos(geom.NewCoord(-1, -1)),
+					),
+			).
+			// 中央の遮蔽物を追加する
+			WithFieldConfig(
+				DefaultFieldConfig().
+					WithObstructionAdded(
+						ObstructionConfig{
+							Segment: geom.NewSegment(
+								geom.NewCoord(0, 2),
+								geom.NewCoord(0, -2),
+							),
+						},
+					),
+			).
+			BuildGame()
 
 		// ターンを実行する
 		g.StartTurn()
@@ -440,11 +439,11 @@ func dummyGame() Game {
 	for i := 1; i < numSquads; i++ {
 		name := fmt.Sprintf("squad-%02d", i)
 		agentBase := fmt.Sprintf("agent-%02d", i)
-		squad := NewSquadConfig(name)
-		squad.
-			AddAgent(NewAgentConfig(agentBase+"h", Hunter)).
-			AddAgent(NewAgentConfig(agentBase+"r", Runner))
-		config.AddSquad(squad)
+		config.WithSquadAdded(
+			NewSquadConfig(name).
+				WithAgentAdded(NewAgentConfig(agentBase+"h", Hunter)).
+				WithAgentAdded(NewAgentConfig(agentBase+"r", Runner)),
+		)
 	}
-	return NewGame(config)
+	return config.BuildGame()
 }
