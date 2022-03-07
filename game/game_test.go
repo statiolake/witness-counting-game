@@ -12,11 +12,11 @@ func TestStateSetup(t *testing.T) {
 	t.Run("SquadsIndexIdAgreement", func(t *testing.T) {
 		g := dummyGame()
 		for idx, squad := range g.Squads {
-			if idx != squad.Id {
+			if idx != squad.ID {
 				t.Errorf(
 					"Squad id and index do not agree: %d and %d",
 					idx,
-					squad.Id,
+					squad.ID,
 				)
 			}
 		}
@@ -25,11 +25,11 @@ func TestStateSetup(t *testing.T) {
 	t.Run("AgentsIndexIdAgreement", func(t *testing.T) {
 		g := dummyGame()
 		for idx, agent := range g.Agents {
-			if idx != agent.Id {
+			if idx != agent.ID {
 				t.Errorf(
 					"Agent id and index do not agree: %d and %d",
 					idx,
-					agent.Id,
+					agent.ID,
 				)
 			}
 		}
@@ -41,8 +41,8 @@ func TestStateSetup(t *testing.T) {
 		for idx := range g.Agents {
 			agent := &g.Agents[idx]
 			agentConfig := &g.Config.
-				Squads[agent.SquadId].
-				Agents[agent.InSquadId]
+				Squads[agent.SquadID].
+				Agents[agent.InSquadID]
 
 			if agent.Kind != agentConfig.Kind {
 				t.Fatalf(
@@ -133,9 +133,9 @@ func TestApplyActionOn(t *testing.T) {
 	t.Run("InvalidAgent", func(t *testing.T) {
 		g := dummyGame()
 		agent := Agent{
-			Id:         0,
-			InSquadId:  0,
-			SquadId:    0,
+			ID:         0,
+			InSquadID:  0,
+			SquadID:    0,
 			Name:       "",
 			Kind:       0,
 			Pos:        geom.NewCoord(0, 0),
@@ -207,10 +207,10 @@ func TestApplyActionOn(t *testing.T) {
 				)
 			}
 			g.StartTurn()
-			too_fast_speed := g.Config.Field.Rect.RB.X * 2 /
+			tooFastSpeed := g.Config.Field.Rect.RB.X * 2 /
 				float64(g.Config.Time)
 			g.Agents[0].Action = &ActionMove{
-				Dir: geom.NewPolarVector(too_fast_speed, 0),
+				Dir: geom.NewPolarVector(tooFastSpeed, 0),
 			}
 
 			if err := g.CommitTurn(); err != nil {

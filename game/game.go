@@ -46,14 +46,14 @@ type Obstruction struct {
 }
 
 type Squad struct {
-	Id   int
+	ID   int
 	Name string
 }
 
 type Agent struct {
-	Id        int // 全体で一意なエージェント番号
-	InSquadId int // squad の中でのエージェント番号
-	SquadId   int
+	ID        int // 全体で一意なエージェント番号
+	InSquadID int // squad の中でのエージェント番号
+	SquadID   int
 	Name      string
 	Kind      Kind
 	Pos       geom.Coord
@@ -74,7 +74,7 @@ type PointGain struct {
 	// Marshal をカスタムして JSON 出力時だけ整数値に置き換えることはできるか
 	// もしれないが、その場合でも Unmarshal を実装するのは無理そう。PointGain
 	// を Unmarshal するときに []Agent が必要ということになるため。
-	AgentIdGainedFrom int
+	AgentIDGainedFrom int
 	Gain              float64
 }
 
@@ -82,33 +82,33 @@ type ActionMove struct {
 	Dir geom.PolarVector
 }
 
-func (config *GameConfig) BuildGame() Game {
+func (c *GameConfig) BuildGame() Game {
 	obsts := []Obstruction{}
 
-	for _, obst := range config.Field.Obsts {
+	for _, obst := range c.Field.Obsts {
 		obsts = append(obsts, Obstruction(obst))
 	}
 
 	field := Field{
-		Rect:  config.Field.Rect,
+		Rect:  c.Field.Rect,
 		Obsts: obsts,
 	}
 
 	squads := []Squad{}
 	agents := []Agent{}
 
-	for squadId, squad := range config.Squads {
+	for squadID, squad := range c.Squads {
 		squads = append(squads, Squad{
-			Id:   squadId,
+			ID:   squadID,
 			Name: squad.Name,
 		})
-		for inSquadId, agent := range squad.Agents {
+		for inSquadID, agent := range squad.Agents {
 			// ID は squad ごとではなく完全にリストとして扱うので注意すべし
 			id := len(agents)
 			agents = append(agents, Agent{
-				Id:         id,
-				InSquadId:  inSquadId,
-				SquadId:    squadId,
+				ID:         id,
+				InSquadID:  inSquadID,
+				SquadID:    squadID,
 				Name:       agent.Name,
 				Kind:       agent.Kind,
 				Pos:        agent.InitPos,
@@ -120,11 +120,11 @@ func (config *GameConfig) BuildGame() Game {
 	}
 
 	return Game{
-		Config:        config.Clone(),
+		Config:        c.Clone(),
 		Field:         field,
 		Squads:        squads,
 		Agents:        agents,
-		TimeRemaining: config.Time,
+		TimeRemaining: c.Time,
 	}
 }
 
@@ -166,9 +166,9 @@ func (a *Agent) Clone() Agent {
 	copy(pointGains, a.PointGains)
 
 	return Agent{
-		Id:         a.Id,
-		InSquadId:  a.InSquadId,
-		SquadId:    a.SquadId,
+		ID:         a.ID,
+		InSquadID:  a.InSquadID,
+		SquadID:    a.SquadID,
 		Name:       a.Name,
 		Kind:       a.Kind,
 		Pos:        a.Pos,
@@ -220,12 +220,12 @@ func (g *Game) CommitTurn() error {
 func (g *Game) DescribeAgent(agent *Agent) string {
 	return fmt.Sprintf(
 		"%s/%s",
-		g.Squads[agent.SquadId].Name,
+		g.Squads[agent.SquadID].Name,
 		agent.Name,
 	)
 }
 
-func (agent *Agent) FindWatchingAgents(g *Game, targetKind *Kind, includeSquad bool) (res []*Agent) {
+func (a *Agent) FindWatchingAgents(g *Game, targetKind *Kind, includeSquad bool) (res []*Agent) {
 	for idx := range g.Agents {
 		other := &g.Agents[idx]
 		// ターゲットの種類が指定されている場合は一致していなければ終了
@@ -234,11 +234,11 @@ func (agent *Agent) FindWatchingAgents(g *Game, targetKind *Kind, includeSquad b
 		}
 
 		// 自分の Squad を含まない場合は SquadId が同じものはスキップ
-		if !includeSquad && other.SquadId == agent.SquadId {
+		if !includeSquad && other.SquadID == a.SquadID {
 			continue
 		}
 
-		if other.IsWatching(agent, g) {
+		if other.IsWatching(a, g) {
 			res = append(res, other)
 		}
 	}
@@ -283,15 +283,15 @@ func (from *Agent) IsWatching(to *Agent, g *Game) bool {
 	return true
 }
 
-func (f *Field) MovableTo(agent *Agent, new_pos geom.Coord) bool {
-	return (f.Rect.LT.X <= new_pos.X &&
-		new_pos.X <= f.Rect.RB.X &&
-		f.Rect.LT.Y <= new_pos.Y &&
-		new_pos.Y <= f.Rect.RB.Y)
+func (f *Field) MovableTo(agent *Agent, newPos geom.Coord) bool {
+	return (f.Rect.LT.X <= newPos.X &&
+		newPos.X <= f.Rect.RB.X &&
+		f.Rect.LT.Y <= newPos.Y &&
+		newPos.Y <= f.Rect.RB.Y)
 }
 
 func (a *Agent) isRegisteredOn(g *Game) bool {
-	return a.Id < len(g.Agents) && &g.Agents[a.Id] == a
+	return a.ID < len(g.Agents) && &g.Agents[a.ID] == a
 }
 
 // エージェントの NextAction やポイント変動情報をリセットする
@@ -309,14 +309,11 @@ func (a *Agent) startTurn() {
 func (g *Game) processActions() (errs error) {
 	for idx := range g.Agents {
 		agent := &g.Agents[idx]
-		if idx != agent.Id {
-			panic(
-				fmt.Sprintf(
-					"internal error: index and id do not agree: %d and %d",
-					idx,
-					agent.Id,
-				),
-			)
+		if idx != agent.ID {
+			panic(fmt.Sprintf(
+				"internal error: index and id do not agree: %d and %d",
+				idx, agent.ID,
+			))
 		}
 
 		// 次の行動が設定されているのであれば適用する。
@@ -352,15 +349,15 @@ func (a *Agent) applyActionOn(g *Game) (bool, error) {
 	}
 
 	// 実際に位置を移動する
-	vec_dir := action.Dir.ToVector()
-	new_pos := a.Pos.Add(vec_dir).AsCoord()
+	vecDir := action.Dir.ToVector()
+	newPos := a.Pos.Add(vecDir).AsCoord()
 
-	if !g.Field.MovableTo(a, new_pos) {
+	if !g.Field.MovableTo(a, newPos) {
 		// 移動できないので何もしない
-		return false, fmt.Errorf("cannot move to %s", new_pos.ToString())
+		return false, fmt.Errorf("cannot move to %s", newPos.ToString())
 	}
 
-	a.Pos = new_pos
+	a.Pos = newPos
 	return true, nil
 }
 
@@ -374,9 +371,9 @@ func (g *Game) moveScore() {
 		a := &g.Agents[idx]
 		switch a.Kind {
 		case Hunter:
-			watchers[a.Id] = a.FindWatchingRunners(g, false)
+			watchers[a.ID] = a.FindWatchingRunners(g, false)
 		case Runner:
-			watchers[a.Id] = a.FindWatchingHunters(g, false)
+			watchers[a.ID] = a.FindWatchingHunters(g, false)
 		}
 	}
 
@@ -388,14 +385,14 @@ func (g *Game) moveScore() {
 		case Hunter:
 			// Hunter の報酬は各 Runner が提供してくれるスコアの和
 			// 各 Runner はスコア 1.0 を見られているハンターへ等分する
-			for _, runner := range watchers[a.Id] {
+			for _, runner := range watchers[a.ID] {
 				// この Hunter が見ている Runner から点数をもらう。もらえる点
 				// 数は Runner が何人の Hunter から見られているかに依存する。
 				// TODO: ここ単に等分で OK ？
-				gain := 1.0 / float64(len(watchers[runner.Id]))
+				gain := 1.0 / float64(len(watchers[runner.ID]))
 				delta += gain
 				a.PointGains = append(a.PointGains, PointGain{
-					AgentIdGainedFrom: runner.Id,
+					AgentIDGainedFrom: runner.ID,
 					Gain:              gain,
 				})
 			}
@@ -403,14 +400,14 @@ func (g *Game) moveScore() {
 		case Runner:
 			// Runner は Hunter に対してスコアを提供する
 			// 一人からでも見られている限り 1.0 を供出することになる
-			if len(watchers[a.Id]) > 0 {
+			if len(watchers[a.ID]) > 0 {
 				delta = -1.0
 
 				// 見られている全員に対してスコアを供出する
-				each := delta / float64(len(watchers[a.Id]))
-				for _, hunter := range watchers[a.Id] {
+				each := delta / float64(len(watchers[a.ID]))
+				for _, hunter := range watchers[a.ID] {
 					a.PointGains = append(a.PointGains, PointGain{
-						AgentIdGainedFrom: hunter.Id,
+						AgentIDGainedFrom: hunter.ID,
 						Gain:              each,
 					})
 				}

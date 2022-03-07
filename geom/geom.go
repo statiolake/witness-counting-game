@@ -41,16 +41,11 @@ func (v Vector) ToString() string {
 }
 
 func (v Vector) AsCoord() Coord {
-	return Coord{
-		Vector: v,
-	}
+	return Coord{Vector: v}
 }
 
 func (a Vector) Add(b Vector) Vector {
-	return NewVector(
-		a.X+b.X,
-		a.Y+b.Y,
-	)
+	return NewVector(a.X+b.X, a.Y+b.Y)
 }
 
 func (a Vector) Sub(b Vector) Vector {
@@ -66,9 +61,7 @@ func (a Vector) Cross(b Vector) float64 {
 }
 
 func NewCoord(x, y float64) Coord {
-	return Coord{
-		Vector: NewVector(x, y),
-	}
+	return Coord{Vector: NewVector(x, y)}
 }
 
 func NewRect(lt, rb Coord) Rect {
@@ -86,10 +79,7 @@ func NewRectFromPoints(minX, minY, maxX, maxY float64) Rect {
 }
 
 func NewSegment(a Coord, b Coord) Segment {
-	return Segment{
-		A: a,
-		B: b,
-	}
+	return Segment{A: a, B: b}
 }
 
 func (v Coord) AsVector() Vector {
@@ -97,10 +87,7 @@ func (v Coord) AsVector() Vector {
 }
 
 func NewPolarVector(r, t float64) PolarVector {
-	return PolarVector{
-		R: r,
-		T: t,
-	}
+	return PolarVector{R: r, T: t}
 }
 
 func (p PolarVector) ToVector() Vector {
@@ -115,7 +102,7 @@ func (p PolarVector) ToVector() Vector {
 // 0: 直線上
 // -1: 時計回り
 func CCW(a, b, c Coord) int {
-	cross := (b.Vector.Sub(a.Vector)).Cross(c.Vector.Sub(a.Vector))
+	cross := (b.Sub(a.Vector)).Cross(c.Sub(a.Vector))
 	if math.Abs(cross) < 1e-8 {
 		return 0
 	} else if cross > 0 {
