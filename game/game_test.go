@@ -54,7 +54,7 @@ func TestStateSetup(t *testing.T) {
 	})
 }
 
-func TestApplyActionFor(t *testing.T) {
+func TestApplyActionOn(t *testing.T) {
 	t.Run("RightAbove45", func(t *testing.T) {
 		g := dummyGame()
 		agent := &g.Agents[0]
@@ -84,9 +84,12 @@ func TestApplyActionFor(t *testing.T) {
 		g := dummyGame()
 		agent := &g.Agents[0]
 
-		// 遠くへ移動しようとしてみる
+		// まずは画面右端へ
+		agent.Pos.X = g.Field.Rect.RB.X
+
+		// さらに右へ
 		agent.Action = &ActionMove{
-			Dir: geom.NewPolarVector(1e5, 0),
+			Dir: geom.NewPolarVector(1, 0),
 		}
 
 		ok, err := agent.applyActionOn(&g)
@@ -97,6 +100,33 @@ func TestApplyActionFor(t *testing.T) {
 
 		if ok {
 			t.Fatalf("error but returned true")
+		}
+	})
+
+	t.Run("DoNotMoveTooFast", func(t *testing.T) {
+		g := dummyGame()
+		agent := &g.Agents[0]
+
+		// 遠くへ移動しようとしてみる
+		agent.Action = &ActionMove{
+			Dir: geom.NewPolarVector(1e5, 0),
+		}
+
+		ok, err := agent.applyActionOn(&g)
+
+		if err != nil {
+			t.Fatalf("too fast move caused error: %v", err)
+		}
+
+		if !ok {
+			t.Fatalf("too fast move was cancelled")
+		}
+
+		// 実際にはスピード程度に抑えられていることを確認する
+		expected := geom.NewCoord(1, 0)
+		actual := agent.Pos
+		if !eq(actual.X, expected.X) || !eq(actual.Y, expected.Y) {
+			t.Fatalf("expected %v but actual %v", expected, actual)
 		}
 	})
 

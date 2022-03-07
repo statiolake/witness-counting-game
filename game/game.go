@@ -300,6 +300,11 @@ func (a *Agent) applyActionOn(g *Game) (bool, error) {
 		return false, nil
 	}
 
+	// 移動速度は Speed までに制限する
+	if action.Dir.R >= g.Config.Speed {
+		action.Dir.R = g.Config.Speed
+	}
+
 	// 実際に位置を移動する
 	vec_dir := action.Dir.ToVector()
 	new_pos := a.Pos.Add(vec_dir).AsCoord()
