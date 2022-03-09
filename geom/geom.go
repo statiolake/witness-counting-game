@@ -97,6 +97,16 @@ func (p PolarVector) ToVector() Vector {
 	)
 }
 
+func (v Vector) Length() float64 {
+	return math.Sqrt(v.X*v.X + v.Y*v.Y)
+}
+
+func (v Vector) ToPolarVector() PolarVector {
+	r := v.Length()
+	t := math.Atan2(v.Y, v.X)
+	return NewPolarVector(r, t)
+}
+
 // a, b, c が反時計回りかどうかを返す。
 // 1: 半時計回り
 // 0: 直線上
