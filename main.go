@@ -50,18 +50,17 @@ func createAIPlay() aiplay.AIPlay {
 		name := fmt.Sprintf("squad-%02d", i)
 		agentBase := fmt.Sprintf("agent-%02d", i)
 
-		squad := aiplay.NewSquadConfig(name)
-		squad.WithAgentAdded(
-			game.NewAgentConfig(agentBase+"h", game.Hunter),
-			&constAI{Dir: geom.NewPolarVector(1, 0)},
+		config.WithSquadAdded(
+			aiplay.NewSquadConfig(name).
+				WithAgentAdded(
+					game.NewAgentConfig(agentBase+"h", game.Hunter),
+					&constAI{Dir: geom.NewPolarVector(1, 0)},
+				).
+				WithAgentAdded(
+					game.NewAgentConfig(agentBase+"r", game.Runner),
+					&constAI{Dir: geom.NewPolarVector(1, 0)},
+				),
 		)
-
-		squad.WithAgentAdded(
-			game.NewAgentConfig(agentBase+"r", game.Runner),
-			&constAI{Dir: geom.NewPolarVector(1, 0)},
-		)
-
-		config.WithSquadAdded(squad)
 	}
 
 	return config.BuildAIPlay()
