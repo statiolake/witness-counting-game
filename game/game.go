@@ -46,8 +46,13 @@ type Obstruction struct {
 }
 
 type Squad struct {
-	ID   int
-	Name string
+	ID         int
+	Name       string
+	TotalPoint float64
+
+	// ターンごとにリセットされる情報
+
+	TotalPointGain float64
 }
 
 type Agent struct {
@@ -211,7 +216,7 @@ func (g *Game) CommitTurn() error {
 	// TODO: 一発退場のような重たい罰にするべき？
 	_ = g.processActions()
 
-	g.moveScore()
+	g.movePoint()
 	g.TimeRemaining--
 
 	return nil
@@ -299,11 +304,19 @@ func (g *Game) StartTurn() {
 	for idx := range g.Agents {
 		g.Agents[idx].startTurn()
 	}
+
+	for idx := range g.Squads {
+		g.Squads[idx].startTurn()
+	}
 }
 
 func (a *Agent) startTurn() {
 	a.Action = nil
 	a.PointGains = []PointGain{}
+}
+
+func (s *Squad) startTurn() {
+	s.TotalPointGain = 0
 }
 
 func (g *Game) processActions() (errs error) {
@@ -361,7 +374,7 @@ func (a *Agent) applyActionOn(g *Game) (bool, error) {
 	return true, nil
 }
 
-func (g *Game) moveScore() {
+func (g *Game) movePoint() {
 	// TODO: Hunter か Runner のどちらかから見るだけでよくない (それにより不整
 	// 合も減らせる)
 	// まずは各 Runner が何人から見られているかを数える (それによって一人の
@@ -414,6 +427,15 @@ func (g *Game) moveScore() {
 			}
 		}
 
-		a.Point += delta
+		g.addPointFor(a, delta)
 	}
+}
+
+func (g *Game) addPointFor(a *Agent, delta float64) {
+	a.Point += delta
+
+	// Squad にもこのエージェントの増減情報を反映する
+	s := &g.Squads[a.SquadID]
+	s.TotalPointGain += delta
+	s.TotalPoint += delta
 }

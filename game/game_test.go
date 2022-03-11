@@ -297,7 +297,8 @@ func TestTurn(t *testing.T) {
 
 		// スコアを確認
 		// 現状は障害物がないのでそのまま人数が出てくるはず。
-		for _, a := range g.Agents {
+		for idx := range g.Agents {
+			a := &g.Agents[idx]
 			if a.Kind == Hunter {
 				// Hunter の場合、cfg.squads - 1 の数だけ Runner がいるから、
 				// それぞれから 1/(cfg.squads - 1) だけもらっていて、結局 +1
@@ -423,6 +424,25 @@ func TestTurn(t *testing.T) {
 					"unexpected point for %s (%s): %v",
 					assert.name, g.DescribeAgent(assert.agent),
 					assert.agent.Point,
+				)
+			}
+		}
+
+		// Squad に保存されているスコアも確認
+		totalPointsPerSquad := make([]float64, len(g.Squads))
+		for idx := range g.Agents {
+			a := &g.Agents[idx]
+			totalPointsPerSquad[a.SquadID] += a.Point
+		}
+
+		for idx := range g.Squads {
+			expected := totalPointsPerSquad[idx]
+			actual := g.Squads[idx].TotalPoint
+			if !eq(expected, actual) {
+				t.Fatalf(
+					"squad point does not agree: expected %f but actual %f",
+					expected,
+					actual,
 				)
 			}
 		}
